@@ -1,6 +1,7 @@
 package com.nhd.processor.controllers;
 
-import java.util.List;
+import com.nhd.processor.dto.RuleDTO;
+import com.nhd.processor.services.RuleService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,14 +15,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nhd.processor.dto.RuleDTO;
-import com.nhd.processor.services.RuleService;
-
 import lombok.AllArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
 
 @RestController
-@RequestMapping("re/api/rules")
+@RequestMapping("api/v1/rule")
 @AllArgsConstructor
 public class ReController {
 
@@ -29,31 +29,28 @@ public class ReController {
 
     @PostMapping
     public ResponseEntity<RuleDTO> createRule(@RequestBody RuleDTO ruleDTO) {
+        System.out.println("RuleDTO = "+ruleDTO);
         RuleDTO savedRule = ruleService.createRule(ruleDTO);
         return new ResponseEntity<>(savedRule, HttpStatus.CREATED);
     }
 
-    // @GetMapping
-    // public ResponseEntity<List<RuleDTO>> getAllRules() {
-    //     List<RuleDTO> rules = ruleService.getAllRules();
-    //     return ResponseEntity.ok(rules);
-    // }
-
     @GetMapping
     public ResponseEntity<List<RuleDTO>> getRules(@RequestParam(required = false) String name) {
-        List<RuleDTO> rules;
+        List<RuleDTO> rules = new ArrayList<>();
+        RuleDTO rule;
         
         if (name != null && !name.trim().isEmpty()) {
-            rules = ruleService.getRulesByName(name);
+            rule = ruleService.getRulesByName(name);
+            rules.add(rule);
         } else {
             rules = ruleService.getAllRules();
         }
         
         return ResponseEntity.ok(rules);
     }
-    @PutMapping("/{id}")
-    public ResponseEntity<RuleDTO> updateRule(@PathVariable Long id, @RequestBody RuleDTO ruleDTO) {
-        RuleDTO updatedRule = ruleService.updateRule(id, ruleDTO);
+    @PutMapping
+    public ResponseEntity<RuleDTO> updateRule( @RequestBody RuleDTO ruleDTO) {
+        RuleDTO updatedRule = ruleService.updateRule( ruleDTO);
         return ResponseEntity.ok(updatedRule);
     }
 

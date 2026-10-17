@@ -13,10 +13,6 @@ import lombok.Data;
 import java.util.ArrayList;
 import java.util.List;
 
-// import org.springframework.data.annotation.Id;
-// import org.springframework.data.relational.core.mapping.Column;
-// import org.springframework.data.relational.core.mapping.Table;
-
 @Data
 @Entity
 @Table(name = "rule", schema = "re")
@@ -26,7 +22,7 @@ public class Rule {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", nullable = false, length = 255)
+    @Column(name = "name", unique=true, nullable = false, length = 255)
     private String name;
 
     @Column(name = "type", nullable = false, length = 255)
@@ -35,11 +31,9 @@ public class Rule {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    // CascadeType.ALL handles automatic saving/deleting of child items
    @OneToMany(mappedBy = "rule", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RuleItem> ruleItems = new ArrayList<>();
 
-    // Helper methods to keep both sides of the relationship synchronized
     public void addRuleItem(RuleItem item) {
         ruleItems.add(item);
         item.setRule(this);

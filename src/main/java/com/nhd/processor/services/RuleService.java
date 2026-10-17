@@ -1,7 +1,5 @@
 package com.nhd.processor.services;
 
-
-
 import com.nhd.processor.dto.RuleDTO;
 import com.nhd.processor.dto.RuleItemDTO;
 import com.nhd.processor.models.Rule;
@@ -13,6 +11,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,23 +23,7 @@ public class RuleService {
 
     @Transactional
     public RuleDTO createRule(RuleDTO dto) {
-        Rule rule = new Rule();
-        rule.setName(dto.getName());
-        rule.setType(dto.getType());
-        rule.setDescription(dto.getDescription());
-
-        if (dto.getRuleItems() != null) {
-            for (RuleItemDTO itemDto : dto.getRuleItems()) {
-                RuleItem item = new RuleItem();
-                item.setCondition(itemDto.getCondition());
-                item.setThenValue(itemDto.getThenValue());
-                item.setElseValue(itemDto.getElseValue());
-                
-                // Uses your helper method to link child to parent correctly
-                rule.addRuleItem(item);
-            }
-        }
-
+        Rule rule = convertToModel(dto);
         Rule savedRule = ruleRepository.save(rule);
         return convertToDTO(savedRule);
     }
@@ -52,7 +35,6 @@ public class RuleService {
                 .collect(Collectors.toList());
     }
 
-    // Helper method to convert Entity back into a clean DTO response
     private RuleDTO convertToDTO(Rule rule) {
         RuleDTO dto = new RuleDTO();
         dto.setId(rule.getId());
@@ -73,25 +55,43 @@ public class RuleService {
         return dto;
     }
 
-    @Transactional
-    public RuleDTO updateRule(Long id, RuleDTO dto) {
-        Rule existingRule = ruleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Rule not found with id: " + id));
 
-        existingRule.setName(dto.getName());
-        existingRule.setDescription(dto.getDescription());
+    private Rule convertToModel(RuleDTO ruleDto){
+        Rule rule = new Rule();
+        return convertToModel(ruleDto, rule);
+    }
 
-        existingRule.getRuleItems().clear();
-        if (dto.getRuleItems() != null) {
-            for (RuleItemDTO itemDto : dto.getRuleItems()) {
-                RuleItem item = new RuleItem();
-                item.setCondition(itemDto.getCondition());
-                item.setThenValue(itemDto.getThenValue());
-                item.setElseValue(itemDto.getElseValue());                
-                existingRule.addRuleItem(item);
+    private Rule convertToModel(RuleDTO ruleDto, Rule rule) {
+        rule.setId(ruleDto.getId());
+        rule.setType(ruleDto.getType());
+        rule.setName(ruleDto.getName());
+        rule.setDescription(ruleDto.getDescription());
+
+        if (rule.getRuleItems() != null) {
+            rule.getRuleItems().clear();
+        } else {
+            rule.setRuleItems(new ArrayList<>());
+        }
+        if (ruleDto.getRuleItems() != null) {
+            for (RuleItemDTO itemDto : ruleDto.getRuleItems()) {
+                RuleItem ruleItem = new RuleItem();
+                ruleItem.setId(itemDto.getId());
+                ruleItem.setCondition(itemDto.getCondition());
+                ruleItem.setThenValue(itemDto.getThenValue());
+                ruleItem.setElseValue(itemDto.getElseValue());
+                rule.addRuleItem(ruleItem);
             }
         }
 
+        return rule;
+    }
+
+    @Transactional
+    public RuleDTO updateRule( RuleDTO dto) {
+        Rule existingRule = ruleRepository.findById(dto.getId())
+                .orElseThrow(() -> new RuntimeException("Rule not found with id: " + dto.getId()));
+        existingRule.getRuleItems().clear();
+        convertToModel(dto, existingRule);
         Rule updatedRule = ruleRepository.save(existingRule);
         return convertToDTO(updatedRule);
     }
@@ -106,7 +106,13 @@ public class RuleService {
 
 
     @Transactional(readOnly = true)
-    public List<RuleDTO> getRulesByName(String name) {
+    public RuleDTO getRulesByName(String name){
+        Rule rule =  ruleRepository.findByName(name);
+            return convertToDTO(rule);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RuleDTO> getRulesByNameContainingIgnoreCase(String name) {
         return ruleRepository.findByNameContainingIgnoreCase(name).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());

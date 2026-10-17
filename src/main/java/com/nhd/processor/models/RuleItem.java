@@ -10,15 +10,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.CascadeType;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
 @Data
 @Entity
-@Table(name = "rule_item")
+@Table(name = "rule_item", schema = "re")
 @NoArgsConstructor
 public class RuleItem {
 
@@ -29,11 +27,9 @@ public class RuleItem {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String condition;
 
-    // Escaping the reserved PostgreSQL keyword "then"
     @Column(name = "then_value", nullable = false, columnDefinition = "TEXT")
     private String thenValue;
 
-    // Escaping the reserved PostgreSQL keyword "else"
     @Column(name = "else_value", columnDefinition = "TEXT")
     private String elseValue;
 
