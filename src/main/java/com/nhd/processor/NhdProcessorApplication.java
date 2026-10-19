@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 public class NhdProcessorApplication {
@@ -18,11 +19,16 @@ public class NhdProcessorApplication {
 		SpringApplication.run(NhdProcessorApplication.class, args);
 	}
 
-       @Bean
-       @Order(1)
-       public CommandLineRunner commandLineRunner(ApplicationContext ctx) {
-            return args -> {
-                System.out.println("Test run");
-            };
-       }
+	@Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+	@Bean
+	@Order(1)
+	public CommandLineRunner commandLineRunner(ApplicationContext ctx) {
+		return args -> {
+			System.out.println("Test run");
+		};
+	}
 }

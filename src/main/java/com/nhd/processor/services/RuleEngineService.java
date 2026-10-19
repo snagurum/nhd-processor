@@ -1,7 +1,7 @@
 package com.nhd.processor.services;
 
-import com.nhd.processor.models.Rule;
-import com.nhd.processor.models.RuleItem;
+import com.nhd.processor.dto.RuleDTO;
+import com.nhd.processor.dto.RuleItemDTO;
 import org.mvel2.MVEL;
 import org.springframework.stereotype.Service;
 
@@ -10,14 +10,10 @@ import java.util.Map;
 @Service
 public class RuleEngineService {
 
-
-    public void parseAndBuildStock(Map<String, Object> context, Rule rule) throws Exception {
-
-        for (RuleItem item : rule.getRuleItems()) {
+    public void executeRule(Map<String, Object> context, RuleDTO rule){
+        for (RuleItemDTO item : rule.getRuleItems()) {
             String conditionStr = item.getCondition();
-            
             Boolean isMatched = MVEL.eval(conditionStr, context, Boolean.class);
-
             if (Boolean.TRUE.equals(isMatched)) {
                 executeAction(item.getThenValue(), context);
             } else if (item.getElseValue() != null) {
