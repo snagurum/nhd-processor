@@ -11,6 +11,9 @@ import com.nhd.processor.models.StockPrice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.ObjectMapper;
@@ -23,14 +26,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
 public class StockPriceLoaderService {
 
     private static final Logger log = LoggerFactory.getLogger(StockPriceLoaderService.class);
-    private static final int limit = 100;
+    private static final int limit = 2000;
     private static final DateTimeFormatter DATE_FORMATTER = new DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern("dd-MMM-yyyy")
@@ -70,44 +73,57 @@ public class StockPriceLoaderService {
     public void processStockPriceForDate(LocalDate fromDate, String ticker) {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = null;
+        List<LoadBspTickerDTO> accumulatedBsps = new ArrayList<>();
+        Map<LocalDate, LocalDate> tradingDates = getDistinctTradingDates();
+
         if( null == fromDate ){
             startDate = LocalDate.parse("01-Apr-1997", DATE_FORMATTER);
         }else{
             startDate = fromDate;
         }
 
-        if(null == ticker){
-            startDate.datesUntil(endDate).forEach(currentDate -> {
-                ALPHANUMERIC_CHARACTERS.forEach(item -> processStockPriceForDate0(currentDate, item));
-            });
-        }else{
-            startDate.datesUntil(endDate).forEach(currentDate -> processStockPriceForDate0(currentDate, ticker));
+
+        startDate.datesUntil(endDate).forEach(currentDate -> {
+            if(tradingDates.containsKey(currentDate)){
+                processStockPriceForDate0(currentDate, ticker, accumulatedBsps);
+            }
+        });
+
+        if (!accumulatedBsps.isEmpty()) {
+            flushAccumulatedData(accumulatedBsps);
         }
     }
 
-    public void processStockPriceForDate0(LocalDate date, String character){
+    private Map<LocalDate, LocalDate> getDistinctTradingDates(){
+        String baseUrl = this.loaderUrl + "/bsp/tradingDates";
+        ParameterizedTypeReference<List<LocalDate>> typeRef = new ParameterizedTypeReference<List<LocalDate>>() {};
+
+        ResponseEntity<List<LocalDate>> response = restTemplate.exchange(
+            baseUrl,
+            HttpMethod.GET,
+            null,
+            typeRef
+        );
+
+        return response.getBody().stream()
+            .collect(Collectors.toMap(
+                    date -> date,
+                    date -> date,
+                    (existing, replacement) -> existing
+            ));
+    }
+
+    public void processStockPriceForDate0(LocalDate date, String character, List<LoadBspTickerDTO> accumulatedBsps){
         List<LoadBspTickerDTO> bspDtos = this.getLoaderBsp(date, character);
         if(bspDtos.isEmpty()){
             log.info("No Data available for ticker startwith = {} on date = {}", character, date);
             return;
         }
-        List<StockPrice> stockPrices = new ArrayList<>();
-        log.info("Character = {}, Date = {}, from LOAD_BSP_TICKER Count = {}", character, date, bspDtos.size());
-        bspDtos.forEach(item ->{
-            StockPrice sp = new StockPrice();
-            Map<String,Object> context = new HashMap<>();
-            context.put("bsp",item);
-            context.put("stockprice",sp);
-            context.put("df", DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH));
-            ruleEngineService.executeRule(context, ruleService.getRulesByName("BSP Loader"));
-            stockPrices.add((StockPrice)context.get("stockprice"));
-        });
-
-        stockPriceService.saveAll(stockPrices);
-
-        // String baseUrl = this.nseUrl + "/api/v1/sp";
-        // String response = restTemplate.postForObject(baseUrl, spDTOs, String.class);
-        // log.info("processed Character = {}, Date = {}, Count = {}", character, date, bspDtos.size());
+        accumulatedBsps.addAll(bspDtos);
+        if (accumulatedBsps.size() > 4000) {
+            log.info("SP Loader Processed total accumulated bsp ({}), date({}})", accumulatedBsps.size(), date);
+            flushAccumulatedData(accumulatedBsps);
+        }
     }
 
     public List<LoadBspTickerDTO> getLoaderBsp(LocalDate date, String tickerStartCharacter){
@@ -136,6 +152,28 @@ public class StockPriceLoaderService {
         return bspTickers;
     }
 
+    private void flushAccumulatedData(List<LoadBspTickerDTO> accumulatedBsps) {
+        List<StockPrice> stockPriceList = executeRuleEngine(accumulatedBsps);
+        stockPriceService.saveAll(stockPriceList);
+        accumulatedBsps.clear();
+    }
+
+    public List<StockPrice> executeRuleEngine(List<LoadBspTickerDTO> bspList){
+        List<StockPrice> stockPricesList = new ArrayList<>(bspList.size());
+        for (int i = 0; i < bspList.size(); i++) {
+            stockPricesList.add(new StockPrice());
+        }
+
+        Map<String, Object> context = new HashMap<>();
+        context.put("bspList", bspList);
+        context.put("stockPriceList", stockPricesList);
+        context.put("df", DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH));
+
+        ruleEngineService.executeRule(context, ruleService.getRulesByName("SP Loader"));
+        return stockPricesList;
+
+    }
+
     public List<StockPriceDTO> getNseStockPrice(LocalDate date){
         String baseUrl = this.nseUrl + "/api/v1/sp/search?date={date}&size={limit}&page={page}";
         List<StockPriceDTO> stockPrices = new ArrayList<>();
@@ -160,58 +198,5 @@ public class StockPriceLoaderService {
         return stockPrices;
     }
 
-    public void saveAll(List<StockPrice> stockPrices){
-        if (stockPrices == null || stockPrices.isEmpty()) return;
-
-        List<StockPrice> toBeStockPrices = new ArrayList<>();
-        LocalDate priceDate = stockPrices.get(0).getPriceDate();
-        String tickerStartsWith = ""+stockPrices.get(0).getTicker().charAt(0);
-        final AtomicInteger newRecordCount = new AtomicInteger(0);
-        final AtomicInteger existingRecordCount = new AtomicInteger(0);
-
-        Map<String, StockPrice> existingMap = stockPriceService.getExistingStockPrices(
-            priceDate,
-            tickerStartsWith,
-            null
-        );
-
-        stockPrices.forEach(sp -> {
-            String key = sp.getTicker() + "_" + sp.getPriceDate();
-            if (existingMap.containsKey(key)) {
-                existingRecordCount.incrementAndGet();
-                StockPrice existingRecord = existingMap.get(key);
-                updateExistingStockPrice(existingRecord, sp);
-                toBeStockPrices.add(existingRecord);
-            } else {
-                newRecordCount.incrementAndGet();
-                toBeStockPrices.add(sp);
-            }
-        });
-        log.info("Saving StockPrice for priceDate({}), tickerStart({}), newRecords({}), existingRecords({})"
-            , priceDate
-            , tickerStartsWith
-            , newRecordCount
-            , existingRecordCount
-        );
-
-        this.stockPriceService.saveAll(toBeStockPrices);
-    }
-
-    private void updateExistingStockPrice(StockPrice oldSp, StockPrice newSp){
-        if( null != newSp.getSeries() )     oldSp.setSeries(newSp.getSeries());
-        if( null != newSp.getOpen() )       oldSp.setOpen(newSp.getOpen());
-        if( null != newSp.getHigh() )       oldSp.setHigh(newSp.getHigh());
-        if( null != newSp.getLow() )        oldSp.setLow(newSp.getLow());
-        if( null != newSp.getPrevClose() )  oldSp.setPrevClose(newSp.getPrevClose());
-        if( null != newSp.getClose() )      oldSp.setClose(newSp.getClose());
-        if( null != newSp.getVwap() )       oldSp.setVwap(newSp.getVwap());
-        if( null != newSp.getHigh52() )     oldSp.setHigh52(newSp.getHigh52());
-        if( null != newSp.getLow52() )      oldSp.setLow52(newSp.getLow52());
-        if( null != newSp.getVolume() )     oldSp.setVolume(newSp.getVolume());
-        if( null != newSp.getValue() )      oldSp.setValue(newSp.getValue());
-        if( null != newSp.getNoOfTrades() ) oldSp.setNoOfTrades(newSp.getNoOfTrades());
-        if( null != newSp.getLtp() )        oldSp.setLtp(newSp.getLtp());
-        if( null != newSp.getFfmc() )       oldSp.setFfmc(newSp.getFfmc());
-    }
 }
 
