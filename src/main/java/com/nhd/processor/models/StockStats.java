@@ -9,11 +9,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -43,5 +43,11 @@ public class StockStats {
 
     @Column(name = "ln_daily_return")
     private BigDecimal lnDailyReturn;
+
+    @Column(name = "dma50")
+    private BigDecimal dma50;
+
+    @Column(name = "dma200")
+    private BigDecimal dma200;
     
 }

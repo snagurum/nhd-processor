@@ -40,7 +40,7 @@ public class ReController {
         RuleDTO rule;
         
         if (name != null && !name.trim().isEmpty()) {
-            rule = ruleService.getRulesByName(name);
+            rule = ruleService.getRuleByName(name);
             rules.add(rule);
         } else {
             rules = ruleService.getAllRules();

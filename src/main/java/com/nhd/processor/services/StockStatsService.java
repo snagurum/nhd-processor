@@ -38,10 +38,7 @@ public class StockStatsService {
         stockStats.forEach(ss -> {
             String key = ss.getTicker() + "_" + ss.getPriceDate();
             if (existingMap.containsKey(key)) {
-                StockStats existingRecord = existingMap.get(key);
-                existingRecord.setDailyReturn(ss.getDailyReturn());
-                existingRecord.setLnDailyReturn(ss.getLnDailyReturn());
-                toBeStockStats.add(updateExistingStockPrice(existingMap.get(key), ss));
+                toBeStockStats.add(updateExistingStockStats(existingMap.get(key), ss));
             } else {
                 toBeStockStats.add(ss);
             }
@@ -73,9 +70,36 @@ public class StockStatsService {
         return stockStatsRepository.findByPriceDate(priceDate, pageable);
     }
 
-    private StockStats updateExistingStockPrice(StockStats oldSs, StockStats newSs){
-        oldSs.setDailyReturn(newSs.getDailyReturn());
-        oldSs.setLnDailyReturn(newSs.getLnDailyReturn());
+    public Page<StockStats> getStockStatsFromDate(LocalDate date, List<String> tickers, Pageable pageable){
+        Page<StockStats> stockStatsPage;
+        if(null == tickers || tickers.size() == 0 || "***ALL***".equals(tickers.get(0)))
+            stockStatsPage = stockStatsRepository.findByPriceDate(date, pageable);
+        else if (tickers.size() > 1)
+            stockStatsPage = stockStatsRepository.findByPriceDateAndTickerIn(date, tickers, pageable);
+        else
+            stockStatsPage = stockStatsRepository.findByPriceDateAndTickerStartingWith(date, ""+tickers.get(0).charAt(0), pageable);
+        return stockStatsPage;
+    }
+
+    public Page<StockStats> findByTicker(String ticker, LocalDate fromDate, Pageable pageable){
+        if(fromDate == null)
+            return stockStatsRepository.findByTickerOrderByPriceDateAsc(ticker, pageable);
+        else return stockStatsRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(ticker, fromDate, pageable);
+    }
+
+    private StockStats updateExistingStockStats(StockStats oldSs, StockStats newSs){
+		if( null != newSs.getDailyReturn())      oldSs.setDailyReturn(newSs.getDailyReturn());
+		if( null != newSs.getLnDailyReturn())    oldSs.setLnDailyReturn(newSs.getLnDailyReturn());
+		if( null != newSs.getDma50())            oldSs.setDma50(newSs.getDma50());
+		if( null != newSs.getDma200())           oldSs.setDma200(newSs.getDma200());
         return oldSs;
+    }
+
+    public Page<StockStats> findByPriceDateAndTickerStartingWith(LocalDate date, String ticker, Pageable pageable){
+        return stockStatsRepository.findByPriceDateAndTickerStartingWith(date, ticker, pageable);
+    }
+
+    public Page<StockStats> findByPriceDateAndTickerIn(LocalDate date, List<String> tickers, Pageable pageable){
+        return stockStatsRepository.findByPriceDateAndTickerIn(date, tickers, pageable);
     }
 }

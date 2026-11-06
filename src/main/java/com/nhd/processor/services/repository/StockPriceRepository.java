@@ -13,14 +13,18 @@ import java.util.List;
 
 public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
 
-    List<StockPrice> findByTicker(String ticker, Pageable pageable);
+    Page<StockPrice> findByTicker(String ticker, Pageable pageable);
+
+    Page<StockPrice> findByTickerOrderByPriceDateAsc(String ticker, Pageable pageable);
 
     Page<StockPrice> findByPriceDate(LocalDate date, Pageable pageable);
 
     Page<StockPrice> findByPriceDateAndTickerStartingWith(LocalDate date, String prefix, Pageable pageable);
 
-    Page<StockPrice> findByPriceDateBetweenAndTicker(LocalDate startDate, LocalDate endDate, String ticker, Pageable pageable);
+    Page<StockPrice> findByPriceDateAndTickerIn(LocalDate priceDate, List<String> tickers, Pageable pageable);
 
-    Page<StockPrice> findByTickerAndPriceDateGreaterThanEqual(String ticker, LocalDate date, Pageable pageable);
+    Page<StockPrice> findByTickerAndPriceDateBetweenOrderByPriceDateAsc(String ticker, LocalDate startDate, LocalDate endDate, Pageable pageable);
+
+    Page<StockPrice> findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(String ticker, LocalDate date, Pageable pageable);
 
 }

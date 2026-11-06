@@ -11,4 +11,7 @@ public class RuleDTO {
     private String type;
     private String description;
     private List<RuleItemDTO> ruleItems;
+    private String sourceTables;
+    private String destinationTable;
+    private String algoType;
 }

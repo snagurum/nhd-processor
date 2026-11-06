@@ -6,10 +6,10 @@ import com.nhd.processor.models.Rule;
 import com.nhd.processor.models.RuleItem;
 import com.nhd.processor.services.repository.RuleRepository;
 
-import lombok.AllArgsConstructor;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +40,9 @@ public class RuleService {
         dto.setId(rule.getId());
         dto.setType(rule.getType());
         dto.setName(rule.getName());
+        dto.setAlgoType(rule.getAlgoType());
+        dto.setSourceTables(rule.getSourceTables());
+        dto.setDestinationTable(rule.getDestinationTable());
         dto.setDescription(rule.getDescription());
         
         List<RuleItemDTO> itemDtos = rule.getRuleItems().stream().map(item -> {
@@ -65,6 +68,9 @@ public class RuleService {
         rule.setId(ruleDto.getId());
         rule.setType(ruleDto.getType());
         rule.setName(ruleDto.getName());
+        rule.setAlgoType(ruleDto.getAlgoType());
+        rule.setSourceTables(ruleDto.getSourceTables());
+        rule.setDestinationTable(ruleDto.getDestinationTable());
         rule.setDescription(ruleDto.getDescription());
 
         if (rule.getRuleItems() != null) {
@@ -82,7 +88,6 @@ public class RuleService {
                 rule.addRuleItem(ruleItem);
             }
         }
-
         return rule;
     }
 
@@ -106,7 +111,7 @@ public class RuleService {
 
 
     @Transactional(readOnly = true)
-    public RuleDTO getRulesByName(String name){
+    public RuleDTO getRuleByName(String name){
         Rule rule =  ruleRepository.findByName(name);
             return convertToDTO(rule);
     }

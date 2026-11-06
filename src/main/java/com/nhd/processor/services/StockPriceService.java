@@ -1,7 +1,6 @@
 package com.nhd.processor.services;
 
 import com.nhd.processor.models.StockPrice;
-import com.nhd.processor.models.StockStats;
 import com.nhd.processor.services.repository.StockPriceRepository;
 
 import org.slf4j.Logger;
@@ -70,6 +69,34 @@ public class StockPriceService {
 
     public Page<StockPrice> findByPriceDate(LocalDate priceDate, Pageable pageable){
         return stockPriceRepository.findByPriceDate(priceDate, pageable);
+    }
+
+    public Page<StockPrice> getStockPricesFromDate(LocalDate date, List<String> tickers, Pageable pageable){
+        Page<StockPrice> stockPricePage;
+        if(null == tickers || tickers.size() == 0) stockPricePage = stockPriceRepository.findByPriceDate(date, pageable);
+        else if (tickers.size() > 1)
+            stockPricePage = stockPriceRepository.findByPriceDateAndTickerIn(date, tickers, pageable);
+        else
+            stockPricePage = stockPriceRepository.findByPriceDateAndTickerStartingWith(date, ""+tickers.get(0).charAt(0), pageable);
+        return stockPricePage;
+    }
+
+    public Page<StockPrice> getByTicker(String ticker, LocalDate fromDate, Pageable pageable){
+        if(fromDate == null)
+            return stockPriceRepository.findByTickerOrderByPriceDateAsc(ticker, pageable);
+        else return stockPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(ticker, fromDate, pageable);
+    }
+
+    public Page<StockPrice> findByPriceDateAndTickerStartingWith(LocalDate date, String ticker, Pageable pageable){
+        return stockPriceRepository.findByPriceDateAndTickerStartingWith(date, ticker, pageable);
+    }
+
+    public Page<StockPrice> findByPriceDateAndTickerIn(LocalDate date, List<String> tickers, Pageable pageable){
+        return stockPriceRepository.findByPriceDateAndTickerIn(date, tickers, pageable);
+    }
+
+    public Page<StockPrice> findByTickerAndPriceDateGreaterThanEqual(String ticker, LocalDate date, Pageable pageable){
+        return stockPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(ticker, date, pageable);
     }
 
     private StockPrice updateExistingStockPrice(StockPrice oldSp, StockPrice newSp){

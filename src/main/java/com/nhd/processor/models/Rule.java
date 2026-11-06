@@ -28,6 +28,15 @@ public class Rule {
     @Column(name = "type", nullable = false, length = 255)
     private String type;
 
+    @Column(name = "algo_type", nullable = false, length = 255)
+    private String algoType;
+
+    @Column(name = "source_tables", nullable = false, length = 255)
+    private String sourceTables;
+
+    @Column(name = "destination_table", nullable = false, length = 255)
+    private String destinationTable;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
