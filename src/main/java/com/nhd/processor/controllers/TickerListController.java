@@ -1,7 +1,7 @@
 package com.nhd.processor.controllers;
 
 import com.nhd.processor.models.TickerList;
-import com.nhd.processor.services.repository.TickerListRepository;
+import com.nhd.processor.repository.TickerListRepository;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

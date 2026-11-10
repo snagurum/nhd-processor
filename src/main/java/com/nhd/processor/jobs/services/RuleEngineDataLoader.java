@@ -111,6 +111,8 @@ public class RuleEngineDataLoader {
                 }
                 case "MOMENTUM_Z_STATS" -> {
                     context.put("momentumZStats",getMomentumZStatsForDate(startDate, tickerListName));
+                    context.put("tickerListName", tickerListName);
+                    context.put("priceDate", startDate);
                 }
             }
         }
@@ -178,7 +180,7 @@ public class RuleEngineDataLoader {
                         .limit(momentumStatsList.size())
                         .collect(Collectors.toCollection(() -> new ArrayList<>(momentumStatsList.size())));
                 context.put("momentumZStatsScoreList", target);
-            }
+            }else context.put("momentumZStatsScoreList", new ArrayList<>());
         }
     }
 

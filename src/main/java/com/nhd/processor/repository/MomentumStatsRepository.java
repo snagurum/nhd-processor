@@ -1,4 +1,4 @@
-package com.nhd.processor.services.repository;
+package com.nhd.processor.repository;
 
 import com.nhd.processor.models.MomentumStats;
 

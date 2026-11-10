@@ -2,8 +2,8 @@ package com.nhd.processor.services;
 
 import com.nhd.processor.models.JobRunner;
 import com.nhd.processor.models.TickerList;
-import com.nhd.processor.services.repository.JobRunnerRepository;
-import com.nhd.processor.services.repository.TickerListRepository;
+import com.nhd.processor.repository.JobRunnerRepository;
+import com.nhd.processor.repository.TickerListRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

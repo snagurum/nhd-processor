@@ -1,6 +1,6 @@
 package com.nhd.processor.services;
 
-import com.nhd.processor.services.repository.StockRepository;
+import com.nhd.processor.repository.StockRepository;
 
 import org.springframework.stereotype.Service;
 

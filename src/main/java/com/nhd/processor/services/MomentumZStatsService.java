@@ -1,19 +1,22 @@
 package com.nhd.processor.services;
 
 import com.nhd.processor.models.MomentumZStats;
-import com.nhd.processor.services.repository.MomentumZStatsRepository;
+import com.nhd.processor.repository.MomentumZStatsRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.AllArgsConstructor;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.hibernate.Session;
+
+import java.sql.PreparedStatement;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Service
@@ -22,6 +25,16 @@ public class MomentumZStatsService {
 
     private MomentumZStatsRepository momentumZStatsRepository;
 
+    @PersistenceContext
+    private final EntityManager entityManager;
+
+
+    public MomentumZStats getStockStatsForDate(LocalDate date, String tickerListName){
+        return momentumZStatsRepository.findByPriceDateAndTickerListName(date,tickerListName  );
+    }
+
+
+/**
     public void saveAll(List<MomentumZStats> momentumZStats){
         if (momentumZStats == null || momentumZStats.isEmpty()) return;
     
@@ -63,10 +76,6 @@ public class MomentumZStatsService {
         }
     }
 
-    public MomentumZStats getStockStatsForDate(LocalDate date, String tickerListName){
-        return momentumZStatsRepository.findByPriceDateAndTickerListName(date,tickerListName  );
-    }
-
     public Map<String, MomentumZStats> getExistingMomentumZStats(List<LocalDate> priceDates){
         Map<String, MomentumZStats> existingMap = new HashMap<>();
         if (priceDates == null || priceDates.isEmpty()) return existingMap;
@@ -98,4 +107,64 @@ public class MomentumZStatsService {
         if( null != newMzs.getStdDevMr6())            oldMzs.setStdDevMr6(newMzs.getStdDevMr6());
         return oldMzs;
     }
+*/
+
+
+@Transactional
+    public void saveAll(List<MomentumZStats> momentumZStats) {
+        if (momentumZStats == null || momentumZStats.isEmpty()) {
+            return;
+        }
+
+        entityManager.createNativeQuery("""
+            CREATE TEMP TABLE temp_momentum_z_stats (
+                ticker_list_name            VARCHAR(20) NOT NULL,
+                price_date                  DATE NOT NULL,
+                mean_mr12                   NUMERIC(10, 2),
+                std_dev_mr12                NUMERIC(10, 2),
+                mean_mr6                    NUMERIC(10, 2),
+                std_dev_mr6                 NUMERIC(10, 2)
+            ) ON COMMIT DROP;
+        """).executeUpdate();
+
+        Session session = entityManager.unwrap(Session.class);
+        session.doWork(connection -> {
+            String sql = "insert into temp_momentum_z_stats(ticker_list_name, price_date, mean_mr12, std_dev_mr12, mean_mr6, std_dev_mr6 )" +
+               " values(?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                int batchSize = 10000;
+                int count = 0;
+
+                for (MomentumZStats mzs : momentumZStats) {
+                    ps.setString     ( 1, mzs.getTickerListName());
+                    ps.setDate       ( 2, java.sql.Date.valueOf(mzs.getPriceDate()));
+                    ps.setBigDecimal (3, mzs.getMeanMr12  ());
+                    ps.setBigDecimal (4, mzs.getStdDevMr12());
+                    ps.setBigDecimal (5, mzs.getMeanMr6   ());
+                    ps.setBigDecimal (6, mzs.getStdDevMr6 ());
+                    ps.addBatch();
+                    if (++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+                }
+                ps.executeBatch();
+            }
+        });
+        entityManager.flush();
+
+        entityManager.createNativeQuery("""
+            insert into nse.momentum_z_stats(ticker_list_name, price_date, mean_mr12, std_dev_mr12, mean_mr6, std_dev_mr6 )
+            select ticker_list_name, price_date, mean_mr12, std_dev_mr12, mean_mr6, std_dev_mr6
+            from temp_momentum_z_stats
+                ON CONFLICT (ticker_list_name, price_date)
+                DO UPDATE SET
+                    mean_mr12           = COALESCE( EXCLUDED.mean_mr12        , momentum_z_stats.mean_mr12        ),
+                    std_dev_mr12        = COALESCE( EXCLUDED.std_dev_mr12     , momentum_z_stats.std_dev_mr12     ),
+                    mean_mr6            = COALESCE( EXCLUDED.mean_mr6         , momentum_z_stats.mean_mr6         ),
+                    std_dev_mr6         = COALESCE( EXCLUDED.std_dev_mr6      , momentum_z_stats.std_dev_mr6      );
+            """).executeUpdate();
+
+            entityManager.clear();
+    }
+
 }

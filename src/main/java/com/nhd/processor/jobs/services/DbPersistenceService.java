@@ -1,6 +1,5 @@
 package com.nhd.processor.jobs.services;
 
-
 import com.nhd.processor.models.MomentumStats;
 import com.nhd.processor.models.MomentumZStats;
 import com.nhd.processor.models.MomentumZStatsScore;
@@ -35,7 +34,7 @@ public class DbPersistenceService {
 
     private Map<String,Object> cachedDBdata = new HashMap<>();
     private int flushCountStockPrice = 10000;
-    private int flushCountStockStats = 10000;
+    private int flushCountStockStats = 20000;
     private int flushCountMomentumStats = 10000;
     private int flushCountMomentumZStats = 10000;
     private int flushCountMomentumZStatsScore = 10000;
@@ -96,19 +95,19 @@ public class DbPersistenceService {
                 "stockPriceList",
                 k -> new ArrayList<>()
             );
-            log.info(" Adding stockPriceList = {}, incoming = {}, price_date = {}", stockPriceList.size(), incomingData.size(), incomingData.get(0).getPriceDate());
-            stockPriceList.addAll(incomingData);
+            logCacheStats("STOCK_PRICE", stockPriceList, incomingData);
+            if(incomingData != null)    stockPriceList.addAll(incomingData);
         }
         
         if ("STOCK_STATS".equals(destinationTable)) {
             List<StockStats> incomingData = (List<StockStats>) context.get("stockStatsList");
             if (incomingData == null || incomingData.isEmpty()) return; 
-            List<StockStats> stockStatList = (List<StockStats>) cachedDBdata.computeIfAbsent(
+            List<StockStats> stockStatsList = (List<StockStats>) cachedDBdata.computeIfAbsent(
                 "stockStatsList",
                 k -> new ArrayList<>()
             );
-            log.trace(" Adding stockStatsList = {}, incoming = {}, price_date = {}", stockStatList.size(), incomingData.size(), incomingData.get(0).getPriceDate());
-            stockStatList.addAll(incomingData);
+            logCacheStats("STOCK_STATS", stockStatsList, incomingData);
+            if(incomingData != null)    stockStatsList.addAll(incomingData);
         }
         
         if ("MOMENTUM_STATS".equals(destinationTable)) {
@@ -118,8 +117,8 @@ public class DbPersistenceService {
                 "momentumStatsList",
                 k -> new ArrayList<>()
             );
-            log.trace(" Adding momentumStatsList = {}, incoming = {}, price_date = {}", momentumStatsList.size(), incomingData.size(), incomingData.get(0).getPriceDate());
-            momentumStatsList.addAll(incomingData);
+            logCacheStats("MOMENTUM_STATS", momentumStatsList, incomingData);
+            if(incomingData != null)    momentumStatsList.addAll(incomingData);
         }
         
         if ("MOMENTUM_Z_STATS".equals(destinationTable)) {
@@ -139,10 +138,21 @@ public class DbPersistenceService {
                 "momentumZStatsScoreList",
                 k -> new ArrayList<>()
             );
-            log.trace(" Adding momentumZStatsScoreList = {}, incoming = {}, price_date = {}", momentumZStatsScoreList.size(), incomingData.size(), incomingData.get(0).getPriceDate());
-            momentumZStatsScoreList.addAll(incomingData);
+            logCacheStats("MOMENTUM_Z_STATS_SCORE", momentumZStatsScoreList, incomingData);
+            if(incomingData != null)    momentumZStatsScoreList.addAll(incomingData);
         }
 
         context.clear();
     }
+
+    private void logCacheStats(String destTableName, List<?> masterList, List<?> incomingList){
+            int momSize = (masterList != null) ? masterList.size() : 0;
+            int incSize = (incomingList != null) ? incomingList.size() : 0;
+            Object object = (incomingList != null && !incomingList.isEmpty() && incomingList.get(0) != null)
+                                ? incomingList.get(0)
+                                : null;
+            log.trace("Adding {} = {}, incoming = {}, data = {}",  destTableName, momSize, incSize, object);
+    }
+
 }
+

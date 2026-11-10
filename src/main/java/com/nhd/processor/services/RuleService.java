@@ -4,7 +4,7 @@ import com.nhd.processor.dto.RuleDTO;
 import com.nhd.processor.dto.RuleItemDTO;
 import com.nhd.processor.models.Rule;
 import com.nhd.processor.models.RuleItem;
-import com.nhd.processor.services.repository.RuleRepository;
+import com.nhd.processor.repository.RuleRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
