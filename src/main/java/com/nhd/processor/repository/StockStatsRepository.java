@@ -22,4 +22,6 @@ public interface StockStatsRepository extends JpaRepository<StockStats, Long> {
 
     Page<StockStats> findByPriceDateAndTickerIn(LocalDate priceDate, List<String> tickers, Pageable pageable);
 
+    List<StockStats> findByTickerInAndPriceDateGreaterThanEqualOrderByPriceDateAsc(List<String> tickers, LocalDate startDate);
+
 }

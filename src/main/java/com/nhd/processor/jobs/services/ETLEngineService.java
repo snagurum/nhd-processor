@@ -56,7 +56,7 @@ public class ETLEngineService {
                     executeRuleForFromDate(rule, startDate, null, tickerListName);
                 else executeRuleForFromDate(rule, startDate, tickers, tickerListName);
             }else{
-                executeRuleForTickers(rule, tickers, fromDate, tickerListName);
+                executeRuleForTickersParallelRE(rule, tickers, fromDate, tickerListName);
             }
         }
     }
@@ -90,6 +90,27 @@ public class ETLEngineService {
             dbPersistenceService.peristData(false, context, rule.getDestinationTable());
         }
         dbPersistenceService.peristData(true, context, rule.getDestinationTable());
+    }
+
+    public void executeRuleForTickersParallelRE(RuleDTO rule, List<String> tickers, LocalDate startDate, String tickerListName) {
+        if ("All".equalsIgnoreCase(tickerListName)) {
+            tickers = stockService.getAllActiveTickers();
+        }
+
+        int chunkSize = 250;
+
+        for (int i = 0; i < tickers.size(); i += chunkSize) {
+            List<String> chunk = tickers.subList(i, Math.min(i + chunkSize, tickers.size()));
+            log.info("loading ruleEngine data for tickers[{}..{}]({})...", chunk.get(0),chunk.get(chunk.size()-1),chunk.size());
+            List<Map<String,Object>> allContexts = ruleEngineDataLoaderService.loadSourceDestDataForTickers(rule, chunk, startDate);
+            log.info("Executing ruleEngine for tickers [{}..{}]({})", chunk.get(0),chunk.get(chunk.size()-1),chunk.size());
+            allContexts.parallelStream()
+                .forEach(localContext -> {
+                    ruleEngineService.executeRule(localContext, rule);
+                });
+            log.info("persisting data for tickers[{}..{}]()", chunk.get(0),chunk.get(chunk.size()-1),chunk.size());
+            dbPersistenceService.peristData(true, allContexts, rule.getDestinationTable());
+        }
     }
 
     private static LocalDate getStartDate(RuleDTO rule, LocalDate fromDate){

@@ -34,11 +34,20 @@ public class DbPersistenceService {
 
     private Map<String,Object> cachedDBdata = new HashMap<>();
     private int flushCountStockPrice = 10000;
-    private int flushCountStockStats = 20000;
+    private int flushCountStockStats = 500000;
     private int flushCountMomentumStats = 10000;
     private int flushCountMomentumZStats = 10000;
     private int flushCountMomentumZStatsScore = 10000;
-    
+
+
+    public void peristData(Boolean flushAnyways, List<Map<String, Object>> allContexts, String destinationTable){
+        for (Map<String,Object> context : allContexts) {
+            cacheData(context, destinationTable);
+            flushData(false);
+        }
+        flushData(true);
+    }
+
     public void peristData(Boolean flushAnyways, Map<String, Object> context, String destinationTable){
         cacheData(context, destinationTable);
         flushData(flushAnyways);        

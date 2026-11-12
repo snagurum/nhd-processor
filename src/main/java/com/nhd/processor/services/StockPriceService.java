@@ -6,6 +6,7 @@ import com.nhd.processor.repository.StockPriceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +19,10 @@ import org.hibernate.Session;
 
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 @AllArgsConstructor
@@ -30,6 +34,22 @@ public class StockPriceService {
 
     @PersistenceContext
     private final EntityManager entityManager;
+
+    private static final int LIMIT = 2000;
+
+
+    public List<StockPrice> getStockPricesFromDate(LocalDate date, List<String> tickers){
+        int pageNumber = 0, pageSize = LIMIT;
+        Page<StockPrice> stockPricePage;
+        List<StockPrice> stockPrices = new ArrayList<>();
+        do {
+            PageRequest pageable = PageRequest.of(pageNumber, pageSize);
+            stockPricePage = getStockPricesFromDate(date, tickers, pageable);
+            stockPrices.addAll(stockPricePage.getContent());
+            pageNumber++;
+        } while (stockPricePage.hasNext());
+        return stockPrices;
+    }
 
     public Page<StockPrice> findByPriceDate(LocalDate priceDate, Pageable pageable){
         return stockPriceRepository.findByPriceDate(priceDate, pageable);
@@ -49,6 +69,19 @@ public class StockPriceService {
         if(fromDate == null)
             return stockPriceRepository.findByTickerOrderByPriceDateAsc(ticker, pageable);
         else return stockPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(ticker, fromDate, pageable);
+    }
+
+    public Map<String, List<StockPrice>> getStockPricesForTickers(List<String> tickers, LocalDate startDate) {
+        if(startDate == null)
+            return stockPriceRepository
+            .findByTickerInOrderByPriceDateAsc(tickers)
+            .stream()
+            .collect(Collectors.groupingBy(StockPrice::getTicker));
+        else
+            return stockPriceRepository
+            .findByTickerInAndPriceDateGreaterThanEqualOrderByPriceDateAsc(tickers, startDate)
+            .stream()
+            .collect(Collectors.groupingBy(StockPrice::getTicker));
     }
 
     public Page<StockPrice> findByPriceDateAndTickerStartingWith(LocalDate date, String ticker, Pageable pageable){

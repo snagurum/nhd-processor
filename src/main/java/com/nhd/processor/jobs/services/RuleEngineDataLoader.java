@@ -28,6 +28,8 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -38,8 +40,9 @@ import java.util.stream.Stream;
 public class RuleEngineDataLoader {
     private static final Logger log = LoggerFactory.getLogger(RuleEngineDataLoader.class);
 
-    private static final int LIMIT = 2000;
     private static DateTimeFormatter DF_DDMMMYYYY = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
+
+    private static final int LIMIT = 2000;
 
     private final String loaderUrl;
     private final RestTemplate restTemplate;
@@ -97,11 +100,11 @@ public class RuleEngineDataLoader {
                 case "df" -> context.put("df", DF_DDMMMYYYY);
                 case "STOCK_PRICE" -> {
                     List<StockPrice> existing = (List<StockPrice>) context.computeIfAbsent("stockPriceList", k -> new ArrayList<>());
-                    existing.addAll(getStockPricesFromDate(startDate, tickers));
+                    existing.addAll(stockPriceService.getStockPricesFromDate(startDate, tickers));
                 }
                 case "STOCK_STATS" -> {
                     List<StockStats> existing = (List<StockStats>) context.computeIfAbsent("stockStatsList", k -> new ArrayList<>());
-                    existing.addAll(getStockStatsFromDate(startDate, tickers));
+                    existing.addAll(stockStatsService.getStockStatsFromDate(startDate, tickers));
                 }
                 case "MOMENTUM_STATS" -> {
                     List<MomentumStats> existingMomentumStats = (List<MomentumStats>) context.computeIfAbsent("momentumStatsList", k -> new ArrayList<>());
@@ -137,6 +140,44 @@ public class RuleEngineDataLoader {
                 }
             }
         }
+    }
+
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String,Object>> loadSourceDestDataForTickers(RuleDTO rule, List<String> tickers, LocalDate startDate){
+
+        List<Map<String, Object>> allContexts = new ArrayList<>(tickers.size());
+        List<String> sourceTables = List.of(rule.getSourceTables().split(","));
+
+        Map<String, List<StockPrice>> pricesByTicker = sourceTables.contains("STOCK_PRICE")
+                ? stockPriceService.getStockPricesForTickers(tickers, startDate)
+                : Collections.emptyMap();
+
+        Map<String, List<StockStats>> statsByTicker = sourceTables.contains("STOCK_STATS")
+                ? stockStatsService.getStockStatsForTickers(tickers, startDate)
+                : Collections.emptyMap();
+
+        tickers.forEach(ticker -> {
+            Map<String, Object> context = new HashMap<>();
+            for (String sourceTable : sourceTables) {
+                switch(sourceTable.trim() ){
+                    case "STOCK_PRICE" -> {
+                        List<StockPrice> existingStockPrices = (List<StockPrice>) context.computeIfAbsent("stockPriceList", k -> new ArrayList<>());
+                        existingStockPrices.addAll(pricesByTicker.get(ticker) == null? new ArrayList<StockPrice>(): pricesByTicker.get(ticker) );
+                    }
+                    case "STOCK_STATS" -> {
+                        List<StockStats> existingStockStats = (List<StockStats>) context.computeIfAbsent("stockStatsList", k -> new ArrayList<>());
+                        existingStockStats.addAll(statsByTicker.get(ticker) == null? new ArrayList<StockStats>():statsByTicker.get(ticker));
+                    }
+                    case "df" -> {
+                        context.put("df", DF_DDMMMYYYY);
+                    }
+                }
+                loadDestTable(context, rule, null);
+                allContexts.add(context);
+            }
+        });
+        return allContexts;
     }
 
 
@@ -213,19 +254,6 @@ public class RuleEngineDataLoader {
     }
 
 
-    public List<StockPrice> getStockPricesFromDate(LocalDate date, List<String> tickers){
-        int pageNumber = 0, pageSize = LIMIT;
-        Page<StockPrice> stockPricePage;
-        List<StockPrice> stockPrices = new ArrayList<>();
-        do {
-            PageRequest pageable = PageRequest.of(pageNumber, pageSize);
-            stockPricePage = stockPriceService.getStockPricesFromDate(date, tickers, pageable);
-            stockPrices.addAll(stockPricePage.getContent());
-            pageNumber++;
-        } while (stockPricePage.hasNext());
-        return stockPrices;
-    }
-
 
     public List<MomentumStats> getMomentumStatsForDate(LocalDate date, List<String> tickers){
         int pageNumber = 0, pageSize = LIMIT;
@@ -238,20 +266,6 @@ public class RuleEngineDataLoader {
             pageNumber++;
         } while (momentumStatsPage.hasNext());
         return momentumStats;
-    }
-
-    
-    public List<StockStats> getStockStatsFromDate(LocalDate date, List<String> tickers){
-        int pageNumber = 0, pageSize = LIMIT;
-        Page<StockStats> stockStatsPage;
-        List<StockStats> stockStats = new ArrayList<>();
-        do {
-            PageRequest pageable = PageRequest.of(pageNumber, pageSize);
-            stockStatsPage = stockStatsService.getStockStatsFromDate(date, tickers, pageable);
-            stockStats.addAll(stockStatsPage.getContent());
-            pageNumber++;
-        } while (stockStatsPage.hasNext());
-        return stockStats;
     }
 
 
