@@ -108,7 +108,7 @@ public class ETLEngineService {
                 .forEach(localContext -> {
                     ruleEngineService.executeRule(localContext, rule);
                 });
-            log.info("persisting data for tickers[{}..{}]()", chunk.get(0),chunk.get(chunk.size()-1),chunk.size());
+            log.info("persisting data for tickers[{}..{}]({})", chunk.get(0),chunk.get(chunk.size()-1),chunk.size());
             dbPersistenceService.peristData(true, allContexts, rule.getDestinationTable());
         }
     }

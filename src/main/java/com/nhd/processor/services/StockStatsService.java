@@ -145,6 +145,8 @@ public class StockStatsService {
             return;
         }
 
+
+        long start = System.nanoTime();
         entityManager.createNativeQuery("""
             CREATE TEMP TABLE temp_stock_stats (
                 ticker VARCHAR(50),
@@ -164,6 +166,7 @@ public class StockStatsService {
             ) ON COMMIT DROP;
         """).executeUpdate();
 
+        long tempCreated = System.nanoTime();
         Session session = entityManager.unwrap(Session.class);
         session.doWork(connection -> {
             String sql = "INSERT INTO temp_stock_stats (ticker, price_date, daily_return, ln_daily_return, dma50, dma200,return_1yr, return_6m , return_3m , return_1m , std_dev_1yr, std_dev_6m, std_dev_3m, std_dev_1m) VALUES (?, ?,?,?,?,?,?,?,?,?, ?, ?, ?, ? )";
@@ -194,27 +197,85 @@ public class StockStatsService {
                 ps.executeBatch();
             }
         });
-        entityManager.flush();
+        // entityManager.flush();
+        long batchInserted = System.nanoTime();
 
-        entityManager.createNativeQuery("""
-            INSERT INTO nse.stock_stats (ticker, price_date, daily_return, ln_daily_return, dma50, dma200, return_1yr, return_6m , return_3m , return_1m , std_dev_1yr, std_dev_6m, std_dev_3m, std_dev_1m)
-            SELECT ticker, price_date, daily_return, ln_daily_return, dma50, dma200, return_1yr, return_6m , return_3m , return_1m , std_dev_1yr, std_dev_6m, std_dev_3m, std_dev_1m FROM temp_stock_stats
+        entityManager.createNativeQuery("ANALYZE temp_stock_stats").executeUpdate();
+        long analyze = System.nanoTime();
+
+        int affected = entityManager.createNativeQuery("""
+            INSERT INTO nse.stock_stats (
+                ticker, price_date,
+                daily_return, ln_daily_return,
+                dma50, dma200,
+                return_1yr, return_6m, return_3m, return_1m,
+                std_dev_1yr, std_dev_6m, std_dev_3m, std_dev_1m
+            )
+            SELECT
+                ticker, price_date,
+                daily_return, ln_daily_return,
+                dma50, dma200,
+                return_1yr, return_6m, return_3m, return_1m,
+                std_dev_1yr, std_dev_6m, std_dev_3m, std_dev_1m
+            FROM temp_stock_stats
             ON CONFLICT (ticker, price_date)
             DO UPDATE SET
-            daily_return    = COALESCE(EXCLUDED.daily_return, stock_stats.daily_return),
-            ln_daily_return = COALESCE(EXCLUDED.ln_daily_return, stock_stats.ln_daily_return),
-            dma50           = COALESCE(EXCLUDED.dma50, stock_stats.dma50),
-            dma200          = COALESCE(EXCLUDED.dma200, stock_stats.dma200),
-            return_1yr         = COALESCE(EXCLUDED.return_1yr, stock_stats.return_1yr),
-            return_6m          = COALESCE(EXCLUDED.return_6m, stock_stats.return_6m),
-            return_3m          = COALESCE(EXCLUDED.return_3m, stock_stats.return_3m),
-            return_1m          = COALESCE(EXCLUDED.return_1m, stock_stats.return_1m),
-            std_dev_1yr         = COALESCE(EXCLUDED.std_dev_1yr, stock_stats.std_dev_1yr),
-            std_dev_6m          = COALESCE(EXCLUDED.std_dev_6m, stock_stats.std_dev_6m),
-            std_dev_3m          = COALESCE(EXCLUDED.std_dev_3m, stock_stats.std_dev_3m),
-            std_dev_1m          = COALESCE(EXCLUDED.std_dev_1m, stock_stats.std_dev_1m)
-            """).executeUpdate();
+                daily_return = COALESCE(EXCLUDED.daily_return, stock_stats.daily_return),
+                ln_daily_return = COALESCE(EXCLUDED.ln_daily_return, stock_stats.ln_daily_return),
+                dma50 = COALESCE(EXCLUDED.dma50, stock_stats.dma50),
+                dma200 = COALESCE(EXCLUDED.dma200, stock_stats.dma200),
+                return_1yr = COALESCE(EXCLUDED.return_1yr, stock_stats.return_1yr),
+                return_6m = COALESCE(EXCLUDED.return_6m, stock_stats.return_6m),
+                return_3m = COALESCE(EXCLUDED.return_3m, stock_stats.return_3m),
+                return_1m = COALESCE(EXCLUDED.return_1m, stock_stats.return_1m),
+                std_dev_1yr = COALESCE(EXCLUDED.std_dev_1yr, stock_stats.std_dev_1yr),
+                std_dev_6m = COALESCE(EXCLUDED.std_dev_6m, stock_stats.std_dev_6m),
+                std_dev_3m = COALESCE(EXCLUDED.std_dev_3m, stock_stats.std_dev_3m),
+                std_dev_1m = COALESCE(EXCLUDED.std_dev_1m, stock_stats.std_dev_1m)
+            WHERE
+                ROW(
+                    stock_stats.daily_return,
+                    stock_stats.ln_daily_return,
+                    stock_stats.dma50,
+                    stock_stats.dma200,
+                    stock_stats.return_1yr,
+                    stock_stats.return_6m,
+                    stock_stats.return_3m,
+                    stock_stats.return_1m,
+                    stock_stats.std_dev_1yr,
+                    stock_stats.std_dev_6m,
+                    stock_stats.std_dev_3m,
+                    stock_stats.std_dev_1m
+                )
+                IS DISTINCT FROM
+                ROW(
+                    COALESCE(EXCLUDED.daily_return, stock_stats.daily_return),
+                    COALESCE(EXCLUDED.ln_daily_return, stock_stats.ln_daily_return),
+                    COALESCE(EXCLUDED.dma50, stock_stats.dma50),
+                    COALESCE(EXCLUDED.dma200, stock_stats.dma200),
+                    COALESCE(EXCLUDED.return_1yr, stock_stats.return_1yr),
+                    COALESCE(EXCLUDED.return_6m, stock_stats.return_6m),
+                    COALESCE(EXCLUDED.return_3m, stock_stats.return_3m),
+                    COALESCE(EXCLUDED.return_1m, stock_stats.return_1m),
+                    COALESCE(EXCLUDED.std_dev_1yr, stock_stats.std_dev_1yr),
+                    COALESCE(EXCLUDED.std_dev_6m, stock_stats.std_dev_6m),
+                    COALESCE(EXCLUDED.std_dev_3m, stock_stats.std_dev_3m),
+                    COALESCE(EXCLUDED.std_dev_1m, stock_stats.std_dev_1m)
+                );
+        """).executeUpdate();
 
-        entityManager.clear();
+        long upsertCompleted = System.nanoTime();
+        log.info(
+            "StockStats persistence: records={}, tempTable={}ms, " +
+            "jdbcBatch={}ms, upsert={}ms, affected={}, total={}ms",
+            stockStats.size(),
+            (tempCreated - start) / 1_000_000,
+            (batchInserted - tempCreated) / 1_000_000,
+            (analyze - batchInserted) / 1_000_000,
+            (upsertCompleted - analyze) / 1_000_000,
+            affected,
+            (upsertCompleted - start) / 1_000_000
+        );
+        // entityManager.clear();
     }
 }

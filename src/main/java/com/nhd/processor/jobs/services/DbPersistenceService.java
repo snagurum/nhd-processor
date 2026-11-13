@@ -60,28 +60,24 @@ public class DbPersistenceService {
         List<StockPrice> stockPricesList = (List<StockPrice>) cachedDBdata.get("stockPriceList");
         if(stockPricesList != null && (flushAnyways ||  stockPricesList.size()>flushCountStockPrice)){
             stockPriceService.saveAll(stockPricesList);
-            if(stockPricesList.size()>0) log.info("saving data stockPrice count = {}, priceDate = {}", stockPricesList.size(), stockPricesList.get(0).getPriceDate());
             stockPricesList.clear();
         }
 
         List<StockStats> stockStatsList = (List<StockStats>) cachedDBdata.get("stockStatsList");
         if(stockStatsList != null && (flushAnyways ||  stockStatsList.size()>flushCountStockStats)){
             stockStatsService.saveAll(stockStatsList);
-            if(stockStatsList.size()>0) log.info("saving data stockStats count = {}, priceDate = {}", stockStatsList.size(), stockStatsList.get(0).getPriceDate());
             stockStatsList.clear();
         }
         
         List<MomentumStats> momentumStatsList = (List<MomentumStats>) cachedDBdata.get("momentumStatsList");
         if(momentumStatsList != null && (flushAnyways ||  momentumStatsList.size()>flushCountMomentumStats)){
             momentumStatsService.saveAll(momentumStatsList);
-            if(momentumStatsList.size()>0) log.info("saving data momentumStats count = {}, priceDate = {}", momentumStatsList.size(), momentumStatsList.get(0).getPriceDate());
             momentumStatsList.clear();
         }
         
         List<MomentumZStats> momentumZStatsList = (List<MomentumZStats>) cachedDBdata.get("momentumZStatsList");
         if(momentumZStatsList != null && (flushAnyways ||  momentumZStatsList.size()>flushCountMomentumZStats)){
             momentumZStatsService.saveAll(momentumZStatsList);
-            if(momentumZStatsList.size()>0) log.info("saving data momentumZStats count = {}, priceDate = {}", momentumZStatsList.size(), momentumZStatsList.get(0).getPriceDate());
             momentumZStatsList.clear();
         }
         
