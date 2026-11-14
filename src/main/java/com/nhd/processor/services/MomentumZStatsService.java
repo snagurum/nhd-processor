@@ -1,5 +1,6 @@
 package com.nhd.processor.services;
 
+import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.models.MomentumZStats;
 import com.nhd.processor.repository.MomentumZStatsRepository;
 
@@ -27,6 +28,8 @@ public class MomentumZStatsService {
 
     @PersistenceContext
     private final EntityManager entityManager;
+
+    private final ProcessorProperties properties;
 
 
     public MomentumZStats getStockStatsForDate(LocalDate date, String tickerListName){
@@ -120,10 +123,10 @@ public class MomentumZStatsService {
             CREATE TEMP TABLE temp_momentum_z_stats (
                 ticker_list_name            VARCHAR(20) NOT NULL,
                 price_date                  DATE NOT NULL,
-                mean_mr12                   NUMERIC(10, 2),
-                std_dev_mr12                NUMERIC(10, 2),
-                mean_mr6                    NUMERIC(10, 2),
-                std_dev_mr6                 NUMERIC(10, 2)
+                mean_mr12                   NUMERIC(18, 8),
+                std_dev_mr12                NUMERIC(18, 8),
+                mean_mr6                    NUMERIC(18, 8),
+                std_dev_mr6                 NUMERIC(18, 8)
             ) ON COMMIT DROP;
         """).executeUpdate();
 
@@ -132,7 +135,7 @@ public class MomentumZStatsService {
             String sql = "insert into temp_momentum_z_stats(ticker_list_name, price_date, mean_mr12, std_dev_mr12, mean_mr6, std_dev_mr6 )" +
                " values(?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                int batchSize = 10000;
+                int batchSize = properties.getPersistenceJdbcBatchSize();
                 int count = 0;
 
                 for (MomentumZStats mzs : momentumZStats) {

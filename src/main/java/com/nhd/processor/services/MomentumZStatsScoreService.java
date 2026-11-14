@@ -1,5 +1,6 @@
 package com.nhd.processor.services;
 
+import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.models.MomentumZStatsScore;
 import com.nhd.processor.repository.MomentumZStatsScoreRepository;
 
@@ -26,6 +27,8 @@ public class MomentumZStatsScoreService {
 
     @PersistenceContext
     private final EntityManager entityManager;
+
+    private final ProcessorProperties properties;
 
 /**
     public void saveAll(List<MomentumZStatsScore> momentumZStatsScores){
@@ -108,10 +111,10 @@ public class MomentumZStatsScoreService {
                  ticker_list_name            VARCHAR(20) NOT NULL,
                  price_date                  DATE NOT NULL,
                  ticker                      VARCHAR(20) NOT NULL,
-                 z12                         NUMERIC(10, 2),
-                 z6                          NUMERIC(10, 2),
-                 zw                          NUMERIC(10, 2),
-                 nmr                         NUMERIC(10, 2)
+                 z12                         NUMERIC(18, 8),
+                 z6                          NUMERIC(18, 8),
+                 zw                          NUMERIC(18, 8),
+                 nmr                         NUMERIC(18, 8)
             ) ON COMMIT DROP;
         """).executeUpdate();
 
@@ -120,7 +123,7 @@ public class MomentumZStatsScoreService {
             String sql = "INSERT INTO temp_momentum_z_stats_score ( ticker_list_name, price_date, ticker, z12, z6, zw, nmr  ) "+
                             "values( ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                int batchSize = 10000;
+                int batchSize = properties.getPersistenceJdbcBatchSize();
                 int count = 0;
 
                 for (MomentumZStatsScore mzss : momentumZStatsScores) {

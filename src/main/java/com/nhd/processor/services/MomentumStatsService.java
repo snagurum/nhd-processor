@@ -1,5 +1,6 @@
 package com.nhd.processor.services;
 
+import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.models.MomentumStats;
 import com.nhd.processor.repository.MomentumStatsRepository;
 
@@ -29,6 +30,8 @@ public class MomentumStatsService {
 
     @PersistenceContext
     private final EntityManager entityManager;
+
+    private final ProcessorProperties properties;
 
 
     public Page<MomentumStats> getByTicker(String ticker, LocalDate fromDate, Pageable pageable){
@@ -136,22 +139,22 @@ public class MomentumStatsService {
             CREATE TEMP TABLE temp_momentum_stats (
                 ticker                      VARCHAR(20) NOT NULL,
                 price_date                  DATE NOT NULL,
-                daily_return                NUMERIC(10, 2),
-                ln_daily_return             NUMERIC(10, 2),
-                mean_1yr_ln_daily_return    NUMERIC(10, 2),
-                sum_1yr_ln_daily_return     NUMERIC(10, 2),
+                daily_return                NUMERIC(18, 8),
+                ln_daily_return             NUMERIC(18, 8),
+                mean_1yr_ln_daily_return    NUMERIC(18, 8),
+                sum_1yr_ln_daily_return     NUMERIC(18, 8),
                 n_1yr                       NUMERIC(10),
-                std_dev_1yr_ln_daily_return NUMERIC(10, 2),
-                std_Dev_1yr_Annualized      NUMERIC(10, 2),
-                price_return_1yr            NUMERIC(10, 2),
-                mr12                        NUMERIC(10, 2),
-                mean_6m_ln_daily_return     NUMERIC(10, 2),
-                sum_6m_ln_daily_return      NUMERIC(10, 2),
-                n_6m                        NUMERIC(10, 2),
-                std_dev_6m_ln_daily_return  NUMERIC(10, 2),
-                std_dev_6m_annualized       NUMERIC(10, 2),
-                price_return_6m             NUMERIC(10, 2),
-                mr6                         NUMERIC(10, 2)
+                std_dev_1yr_ln_daily_return NUMERIC(18, 8),
+                std_Dev_1yr_Annualized      NUMERIC(18, 8),
+                price_return_1yr            NUMERIC(18, 8),
+                mr12                        NUMERIC(18, 8),
+                mean_6m_ln_daily_return     NUMERIC(18, 8),
+                sum_6m_ln_daily_return      NUMERIC(18, 8),
+                n_6m                        NUMERIC(18, 8),
+                std_dev_6m_ln_daily_return  NUMERIC(18, 8),
+                std_dev_6m_annualized       NUMERIC(18, 8),
+                price_return_6m             NUMERIC(18, 8),
+                mr6                         NUMERIC(18, 8)
             ) ON COMMIT DROP;
         """).executeUpdate();
 
@@ -160,7 +163,7 @@ public class MomentumStatsService {
             String sql = "INSERT INTO temp_momentum_stats ( ticker, price_date, daily_return, ln_daily_return, mean_1yr_ln_daily_return, sum_1yr_ln_daily_return, n_1yr, std_dev_1yr_ln_daily_return, std_Dev_1yr_Annualized, price_return_1yr, mr12, mean_6m_ln_daily_return, sum_6m_ln_daily_return, n_6m, std_dev_6m_ln_daily_return, std_dev_6m_annualized, price_return_6m, mr6) "+
                             "values( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                int batchSize = 10000;
+                int batchSize = properties.getPersistenceJdbcBatchSize();
                 int count = 0;
 
                 for (MomentumStats ms : momentumStats) {

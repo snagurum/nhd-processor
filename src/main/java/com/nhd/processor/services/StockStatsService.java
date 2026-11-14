@@ -1,5 +1,6 @@
 package com.nhd.processor.services;
 
+import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.models.StockStats;
 import com.nhd.processor.repository.StockStatsRepository;
 
@@ -35,10 +36,10 @@ public class StockStatsService {
     @PersistenceContext
     private final EntityManager entityManager;
 
-    private static final int LIMIT = 2000;
+    private final ProcessorProperties properties;
 
     public List<StockStats> getStockStatsFromDate(LocalDate date, List<String> tickers){
-        int pageNumber = 0, pageSize = LIMIT;
+        int pageNumber = 0, pageSize = properties.getPaginationPageSize();
         Page<StockStats> stockStatsPage;
         List<StockStats> stockStats = new ArrayList<>();
         do {
@@ -151,18 +152,18 @@ public class StockStatsService {
             CREATE TEMP TABLE temp_stock_stats (
                 ticker VARCHAR(50),
                 price_date DATE,
-                daily_return NUMERIC(10,2),
-                ln_daily_return NUMERIC(10,2),
-                dma50      NUMERIC(10,2),
-                dma200     NUMERIC(10,2),
-                return_1yr numeric(10,2),
-                return_6m  numeric(10,2),
-                return_3m  numeric(10,2),
-                return_1m  numeric(10,2),
-                std_dev_1yr numeric(10,2),
-                std_dev_6m  numeric(10,2),
-                std_dev_3m  numeric(10,2),
-                std_dev_1m  numeric(10,2)
+                daily_return NUMERIC(18,8),
+                ln_daily_return NUMERIC(18,8),
+                dma50      NUMERIC(18,4),
+                dma200     NUMERIC(18,4),
+                return_1yr numeric(18,8),
+                return_6m  numeric(18,8),
+                return_3m  numeric(18,8),
+                return_1m  numeric(18,8),
+                std_dev_1yr numeric(18,8),
+                std_dev_6m  numeric(18,8),
+                std_dev_3m  numeric(18,8),
+                std_dev_1m  numeric(18,8)
             ) ON COMMIT DROP;
         """).executeUpdate();
 
@@ -171,7 +172,7 @@ public class StockStatsService {
         session.doWork(connection -> {
             String sql = "INSERT INTO temp_stock_stats (ticker, price_date, daily_return, ln_daily_return, dma50, dma200,return_1yr, return_6m , return_3m , return_1m , std_dev_1yr, std_dev_6m, std_dev_3m, std_dev_1m) VALUES (?, ?,?,?,?,?,?,?,?,?, ?, ?, ?, ? )";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                int batchSize = 10000;
+                int batchSize = properties.getPersistenceJdbcBatchSize();
                 int count = 0;
 
                 for (StockStats ss : stockStats) {

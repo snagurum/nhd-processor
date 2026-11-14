@@ -1,5 +1,6 @@
 package com.nhd.processor.services;
 
+import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.models.StockPrice;
 import com.nhd.processor.repository.StockPriceRepository;
 
@@ -35,11 +36,11 @@ public class StockPriceService {
     @PersistenceContext
     private final EntityManager entityManager;
 
-    private static final int LIMIT = 2000;
+    private final ProcessorProperties properties;
 
 
     public List<StockPrice> getStockPricesFromDate(LocalDate date, List<String> tickers){
-        int pageNumber = 0, pageSize = LIMIT;
+        int pageNumber = 0, pageSize = properties.getPaginationPageSize();
         Page<StockPrice> stockPricePage;
         List<StockPrice> stockPrices = new ArrayList<>();
         do {
@@ -168,18 +169,18 @@ public class StockPriceService {
                 ticker           VARCHAR(50),
                 price_date       DATE,
                 series           VARCHAR(10),
-                open             NUMERIC(10, 2),
-                high             NUMERIC(10, 2),
-                low              NUMERIC(10, 2),
-                prev_close       NUMERIC(10, 2),
-                close            NUMERIC(10, 2),
-                vwap             NUMERIC(10, 2),
-                high52           NUMERIC(10, 2),
-                low52            NUMERIC(10, 2),
+                open             NUMERIC(18, 4),
+                high             NUMERIC(18, 4),
+                low              NUMERIC(18, 4),
+                prev_close       NUMERIC(18, 4),
+                close            NUMERIC(18, 4),
+                vwap             NUMERIC(18, 4),
+                high52           NUMERIC(18, 4),
+                low52            NUMERIC(18, 4),
                 volume           BIGINT,
-                value            NUMERIC(15, 2),
+                value            NUMERIC(20, 2),
                 no_of_trades     BIGINT,
-                ltp              NUMERIC(10, 2),
+                ltp              NUMERIC(18, 4),
                 ffmc             BIGINT
             ) ON COMMIT DROP;
         """).executeUpdate();
@@ -189,7 +190,7 @@ public class StockPriceService {
             String sql = "INSERT INTO temp_stock_price (ticker, price_date, series, open, high, low, prev_close, close, vwap, high52, low52, volume, value, no_of_trades, ltp, ffmc) " +
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                int batchSize = 10000;
+                int batchSize = properties.getPersistenceJdbcBatchSize();
                 int count = 0;
 
                 for (StockPrice ss : stockPrice) {

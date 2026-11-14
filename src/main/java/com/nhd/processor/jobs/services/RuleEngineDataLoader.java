@@ -1,6 +1,7 @@
 package com.nhd.processor.jobs.services;
 
 import com.nhd.processor.dto.BspSearchResponse;
+import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.dto.LoadBspTickerDTO;
 import com.nhd.processor.dto.RuleDTO;
 import com.nhd.processor.models.MomentumStats;
@@ -42,8 +43,6 @@ public class RuleEngineDataLoader {
 
     private static DateTimeFormatter DF_DDMMMYYYY = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
 
-    private static final int LIMIT = 2000;
-
     private final String loaderUrl;
     private final RestTemplate restTemplate;
     private final StockPriceService stockPriceService;
@@ -51,6 +50,7 @@ public class RuleEngineDataLoader {
     private final MomentumStatsService momentumStatsService;
     private final MomentumZStatsService momentumZStatsService;
     private final ObjectMapper objectMapper;
+    private final ProcessorProperties properties;
 
     public RuleEngineDataLoader(@Value("${app.loader.url}") String loaderUrl
         , RestTemplate restTemplate
@@ -58,7 +58,8 @@ public class RuleEngineDataLoader {
         , StockStatsService stockStatsService
         , MomentumStatsService momentumStatsService
         , MomentumZStatsService momentumZStatsService
-        , ObjectMapper objectMapper){
+        , ObjectMapper objectMapper
+        , ProcessorProperties properties){
         this.loaderUrl = loaderUrl;
         this.restTemplate = restTemplate;
         this.stockPriceService = stockPriceService;
@@ -66,6 +67,7 @@ public class RuleEngineDataLoader {
         this.stockStatsService = stockStatsService;
         this.momentumStatsService = momentumStatsService;
         this.momentumZStatsService = momentumZStatsService;
+        this.properties = properties;
     }
 
     public Map<LocalDate, LocalDate> getDistinctTradingDates(){
@@ -239,7 +241,7 @@ public class RuleEngineDataLoader {
                 String.class,
                 date,
                 tickers,
-                LIMIT,
+                properties.getPaginationPageSize(),
                 currentPage
             );
             log.trace("JsonResult = {}", jsonResult);
@@ -256,7 +258,7 @@ public class RuleEngineDataLoader {
 
 
     public List<MomentumStats> getMomentumStatsForDate(LocalDate date, List<String> tickers){
-        int pageNumber = 0, pageSize = LIMIT;
+        int pageNumber = 0, pageSize = properties.getPaginationPageSize();
         Page<MomentumStats> momentumStatsPage;
         List<MomentumStats> momentumStats = new ArrayList<>();
         do {
@@ -276,7 +278,7 @@ public class RuleEngineDataLoader {
 
 
     public List<StockPrice> getStockPricesForTicker(String ticker, LocalDate date){
-        int pageNumber = 0, pageSize = LIMIT;
+        int pageNumber = 0, pageSize = properties.getPaginationPageSize();
         Page<StockPrice> stockPricePage;
         List<StockPrice> stockPrices = new ArrayList<>();
         do {
@@ -290,7 +292,7 @@ public class RuleEngineDataLoader {
 
     
     public List<StockStats> getStockStatsForTicker(String ticker, LocalDate date){
-        int pageNumber = 0, pageSize = LIMIT;
+        int pageNumber = 0, pageSize = properties.getPaginationPageSize();
         Page<StockStats> stockStatsPage;
         List<StockStats> stockStats = new ArrayList<>();
         do {

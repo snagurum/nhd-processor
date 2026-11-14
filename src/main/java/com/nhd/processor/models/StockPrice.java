@@ -41,40 +41,40 @@ public class StockPrice {
     @Column(name = "series", length = 10)
     private String series;
 
-    @Column(name = "open", precision = 10, scale = 2)
+    @Column(name = "open", precision = 18, scale = 4)
     private BigDecimal open;
 
-    @Column(name = "high", precision = 10, scale = 2)
+    @Column(name = "high", precision = 18, scale = 4)
     private BigDecimal high;
 
-    @Column(name = "low", precision = 10, scale = 2)
+    @Column(name = "low", precision = 18, scale = 4)
     private BigDecimal low;
 
-    @Column(name = "prev_close", precision = 10, scale = 2)
+    @Column(name = "prev_close", precision = 18, scale = 4)
     private BigDecimal prevClose;
 
-    @Column(name = "close", precision = 10, scale = 2)
+    @Column(name = "close", precision = 18, scale = 4)
     private BigDecimal close;
 
-    @Column(name = "vwap", precision = 10, scale = 2)
+    @Column(name = "vwap", precision = 18, scale = 4)
     private BigDecimal vwap;
 
-    @Column(name = "high52", precision = 10, scale = 2)
+    @Column(name = "high52", precision = 18, scale = 4)
     private BigDecimal high52;
 
-    @Column(name = "low52", precision = 10, scale = 2)
+    @Column(name = "low52", precision = 18, scale = 4)
     private BigDecimal low52;
 
     @Column(name = "volume")
     private Long volume;
 
-    @Column(name = "value", precision = 15, scale = 2)
+    @Column(name = "value", precision = 20, scale = 2)
     private BigDecimal value;
 
     @Column(name = "no_of_trades")
     private Long noOfTrades;
 
-    @Column(name = "ltp", precision = 10, scale = 2)
+    @Column(name = "ltp", precision = 18, scale = 4)
     private BigDecimal ltp;
 
     @Column(name = "ffmc")

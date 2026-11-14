@@ -1,6 +1,7 @@
 package com.nhd.processor.jobs.services;
 
 import com.nhd.processor.dto.RuleDTO;
+import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.models.JobRunner;
 import com.nhd.processor.models.TickerList;
 import com.nhd.processor.services.RuleEngineService;
@@ -14,36 +15,40 @@ import org.springframework.stereotype.Service;
 import lombok.AllArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
 public class ETLEngineService {
 
     private static final Logger log = LoggerFactory.getLogger(ETLEngineService.class);
-    private static final DateTimeFormatter DATE_FORMATTER = new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("dd-MMM-yyyy")
-        .toFormatter(Locale.ENGLISH);
-    private static LocalDate ALL_FROM_DATE = LocalDate.parse("01-Jan-1996", DATE_FORMATTER);
-    private static LocalDate MOMENTUM_FROM_DATE = LocalDate.parse("01-Jan-2014", DATE_FORMATTER);
-
     private final RuleService ruleService;
     private final RuleEngineService ruleEngineService;
     private final RuleEngineDataLoader ruleEngineDataLoaderService;
     private final DbPersistenceService dbPersistenceService;
     private final StockService stockService;
+    private final ProcessorProperties properties;
 
     public void executeJobRunner(JobRunner jobRunner, LocalDate fromDate){
+        executeJobRunner(jobRunner, null, fromDate);
+    }
+
+    public void executeJobRunner(JobRunner jobRunner, List<String> requestedTickers, LocalDate fromDate){
         log.info("Running JobRunner {}",jobRunner);
         TickerList tickerList = jobRunner.getTickerList();
-        List<String> tickers = (tickerList != null)?List.of(tickerList.getTickerList().split(",")): new ArrayList<>();
+        List<String> configuredTickers = (tickerList != null)
+            ? List.of(tickerList.getTickerList().split(","))
+            : new ArrayList<>();
+        List<String> tickers = normalizeTickers(requestedTickers);
+        boolean useConfiguredTickers = tickers.isEmpty();
+        if (useConfiguredTickers) {
+            tickers = configuredTickers;
+        }
         String tickerListName = jobRunner.getTickerList().getName();
         List<String> ruleNames = List.of(jobRunner.getRules().split(","));
 
@@ -52,7 +57,7 @@ public class ETLEngineService {
             log.info("rule details  = {}", rule);
             LocalDate startDate = getStartDate(rule, fromDate);
             if("FROM_DATE".equals(rule.getAlgoType())){
-                if("ALL".equals(tickerListName))
+                if(useConfiguredTickers && "ALL".equals(tickerListName))
                     executeRuleForFromDate(rule, startDate, null, tickerListName);
                 else executeRuleForFromDate(rule, startDate, tickers, tickerListName);
             }else{
@@ -61,8 +66,20 @@ public class ETLEngineService {
         }
     }
 
+    private static List<String> normalizeTickers(List<String> tickers) {
+        if (tickers == null) {
+            return List.of();
+        }
+        return tickers.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(ticker -> !ticker.isEmpty())
+            .collect(Collectors.toList());
+    }
+
     public void executeRuleForFromDate(RuleDTO rule, LocalDate startDate , List<String> tickers, String tickerListName){
         Map<String, Object> context = new HashMap<>();
+        DbPersistenceService.PersistenceBuffer buffer = dbPersistenceService.newBuffer();
         LocalDate endDate = LocalDate.now();
         Map<LocalDate, LocalDate> tradingDates = ruleEngineDataLoaderService.getDistinctTradingDates();
         startDate.datesUntil(endDate).forEach(currentDate -> {
@@ -70,16 +87,17 @@ public class ETLEngineService {
                 ruleEngineDataLoaderService.loadSourceTableDataForFromDate(context, rule, currentDate, tickers, tickerListName);
                 ruleEngineDataLoaderService.loadDestTable(context, rule, tickerListName);
                 ruleEngineService.executeRule(context, rule);
-                dbPersistenceService.peristData(false, context, rule.getDestinationTable());
+                dbPersistenceService.peristData(buffer, false, context, rule.getDestinationTable());
             }
         });
-        dbPersistenceService.peristData(true, context, rule.getDestinationTable());
+        dbPersistenceService.peristData(buffer, true, context, rule.getDestinationTable());
     }
 
     public void executeRuleForTickers(RuleDTO rule, List<String> tickers, LocalDate startDate, String tickerListName){
         Map<String, Object> context = new HashMap<>();
+        DbPersistenceService.PersistenceBuffer buffer = dbPersistenceService.newBuffer();
 
-        if("All".equalsIgnoreCase(tickerListName)){
+        if(tickers.size() == 1 && "***ALL***".equals(tickers.get(0))){
             tickers = stockService.getAllActiveTickers();
         }
 
@@ -87,17 +105,18 @@ public class ETLEngineService {
             ruleEngineDataLoaderService.loadSourceTableDataForTicker(context, rule, ticker, startDate, tickerListName);
             ruleEngineDataLoaderService.loadDestTable(context, rule, tickerListName);
             ruleEngineService.executeRule(context, rule);
-            dbPersistenceService.peristData(false, context, rule.getDestinationTable());
+            dbPersistenceService.peristData(buffer, false, context, rule.getDestinationTable());
         }
-        dbPersistenceService.peristData(true, context, rule.getDestinationTable());
+        dbPersistenceService.peristData(buffer, true, context, rule.getDestinationTable());
     }
 
     public void executeRuleForTickersParallelRE(RuleDTO rule, List<String> tickers, LocalDate startDate, String tickerListName) {
-        if ("All".equalsIgnoreCase(tickerListName)) {
+        DbPersistenceService.PersistenceBuffer buffer = dbPersistenceService.newBuffer();
+        if (tickers.size() == 1 && "***ALL***".equals(tickers.get(0))) {
             tickers = stockService.getAllActiveTickers();
         }
 
-        int chunkSize = 250;
+        int chunkSize = properties.getEtlTickerChunkSize();
 
         for (int i = 0; i < tickers.size(); i += chunkSize) {
             List<String> chunk = tickers.subList(i, Math.min(i + chunkSize, tickers.size()));
@@ -109,14 +128,14 @@ public class ETLEngineService {
                     ruleEngineService.executeRule(localContext, rule);
                 });
             log.info("persisting data for tickers[{}..{}]({})", chunk.get(0),chunk.get(chunk.size()-1),chunk.size());
-            dbPersistenceService.peristData(true, allContexts, rule.getDestinationTable());
+            dbPersistenceService.peristData(buffer, true, allContexts, rule.getDestinationTable());
         }
     }
 
-    private static LocalDate getStartDate(RuleDTO rule, LocalDate fromDate){
-        LocalDate startDate = (null == fromDate) ? ALL_FROM_DATE : fromDate;
+    private LocalDate getStartDate(RuleDTO rule, LocalDate fromDate){
+        LocalDate startDate = (null == fromDate) ? properties.getEtlDefaultFromDate() : fromDate;
         if(rule.getType().equals("MOMENTUM"))
-            startDate = (null == fromDate) ? MOMENTUM_FROM_DATE : fromDate;
+            startDate = (null == fromDate) ? properties.getEtlMomentumFromDate() : fromDate;
         return startDate;
     }
 }

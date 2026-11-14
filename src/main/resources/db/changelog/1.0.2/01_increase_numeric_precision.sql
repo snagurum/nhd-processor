@@ -1,0 +1,52 @@
+ALTER TABLE nse.stock_price
+    ALTER COLUMN open TYPE NUMERIC(18, 4),
+    ALTER COLUMN high TYPE NUMERIC(18, 4),
+    ALTER COLUMN low TYPE NUMERIC(18, 4),
+    ALTER COLUMN prev_close TYPE NUMERIC(18, 4),
+    ALTER COLUMN close TYPE NUMERIC(18, 4),
+    ALTER COLUMN vwap TYPE NUMERIC(18, 4),
+    ALTER COLUMN high52 TYPE NUMERIC(18, 4),
+    ALTER COLUMN low52 TYPE NUMERIC(18, 4),
+    ALTER COLUMN value TYPE NUMERIC(20, 2),
+    ALTER COLUMN ltp TYPE NUMERIC(18, 4);
+
+ALTER TABLE nse.stock_stats
+    ALTER COLUMN daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN return_1yr TYPE NUMERIC(18, 8),
+    ALTER COLUMN return_6m TYPE NUMERIC(18, 8),
+    ALTER COLUMN return_3m TYPE NUMERIC(18, 8),
+    ALTER COLUMN return_1m TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_1yr TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_6m TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_3m TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_1m TYPE NUMERIC(18, 8);
+
+ALTER TABLE nse.momentum_stats
+    ALTER COLUMN daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN mean_1yr_ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN sum_1yr_ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_1yr_ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_1yr_annualized TYPE NUMERIC(18, 8),
+    ALTER COLUMN price_return_1yr TYPE NUMERIC(18, 8),
+    ALTER COLUMN mr12 TYPE NUMERIC(18, 8),
+    ALTER COLUMN mean_6m_ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN sum_6m_ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN n_6m TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_6m_ln_daily_return TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_6m_annualized TYPE NUMERIC(18, 8),
+    ALTER COLUMN price_return_6m TYPE NUMERIC(18, 8),
+    ALTER COLUMN mr6 TYPE NUMERIC(18, 8);
+
+ALTER TABLE nse.momentum_z_stats
+    ALTER COLUMN mean_mr12 TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_mr12 TYPE NUMERIC(18, 8),
+    ALTER COLUMN mean_mr6 TYPE NUMERIC(18, 8),
+    ALTER COLUMN std_dev_mr6 TYPE NUMERIC(18, 8);
+
+ALTER TABLE nse.momentum_z_stats_score
+    ALTER COLUMN z12 TYPE NUMERIC(18, 8),
+    ALTER COLUMN z6 TYPE NUMERIC(18, 8),
+    ALTER COLUMN zw TYPE NUMERIC(18, 8),
+    ALTER COLUMN nmr TYPE NUMERIC(18, 8);
