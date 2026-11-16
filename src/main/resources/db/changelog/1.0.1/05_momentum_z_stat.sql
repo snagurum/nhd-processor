@@ -1,7 +1,7 @@
 
 -- MOMENTUM Z STATS
 
-CREATE TABLE nse.momentum_z_stats (
+CREATE TABLE IF NOT EXISTS nse.momentum_z_stats (
     id                          INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     ticker_list_name            VARCHAR(20) NOT NULL,
     price_date                  DATE NOT NULL,
@@ -15,8 +15,8 @@ CREATE TABLE nse.momentum_z_stats (
 ALTER TABLE nse.momentum_z_stats
 ADD CONSTRAINT mzs_unique_ticker_date UNIQUE (ticker_list_name, price_date);
 
-CREATE INDEX idx_momentum_z_stats_ticker_date 
+CREATE INDEX IF NOT EXISTS idx_momentum_z_stats_ticker_date
 ON nse.momentum_z_stats (ticker_list_name, price_date);
 
-CREATE INDEX idx_momentum_z_stats_date 
+CREATE INDEX IF NOT EXISTS idx_momentum_z_stats_date
 ON nse.momentum_z_stats (price_date);

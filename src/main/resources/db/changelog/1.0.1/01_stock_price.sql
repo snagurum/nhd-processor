@@ -1,4 +1,4 @@
-create table nse.STOCK(
+create table IF NOT EXISTS nse.STOCK(
     id                integer primary key generated always as identity,
     ticker           varchar(50),        -- SYMBOL
     name             varchar(200),       -- NAME OF COMPANY
@@ -16,7 +16,7 @@ create table nse.STOCK(
 ) ;
 
 
-CREATE TABLE nse.stock_price (
+CREATE TABLE IF NOT EXISTS nse.stock_price (
     id               INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     ticker           VARCHAR(20) NOT NULL,
     price_date       DATE NOT NULL,
@@ -39,12 +39,12 @@ CREATE TABLE nse.stock_price (
 ALTER TABLE nse.stock_price 
 ADD CONSTRAINT unique_ticker_date UNIQUE (ticker, price_date);
 
-CREATE INDEX idx_stock_price_ticker_date 
+CREATE INDEX IF NOT EXISTS idx_stock_price_ticker_date
 ON nse.stock_price (ticker, price_date);
 
-CREATE INDEX idx_stock_price_date 
+CREATE INDEX IF NOT EXISTS idx_stock_price_date
 ON nse.stock_price (price_date);
 
-CREATE INDEX idx_stock_price_ticker_pattern_date 
+CREATE INDEX IF NOT EXISTS idx_stock_price_ticker_pattern_date
 ON nse.stock_price (ticker varchar_pattern_ops, price_date);
 

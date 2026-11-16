@@ -1,7 +1,7 @@
 
 -- MOMENTUM STATS
 
-CREATE TABLE nse.momentum_stats (
+CREATE TABLE IF NOT EXISTS nse.momentum_stats (
     id                          INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     ticker                      VARCHAR(20) NOT NULL,
     price_date                  DATE NOT NULL,
@@ -14,7 +14,6 @@ CREATE TABLE nse.momentum_stats (
     std_Dev_1yr_Annualized      NUMERIC(10, 2),
     price_return_1yr            NUMERIC(10, 2),
     mr12                        NUMERIC(10, 2),
-    
     mean_6m_ln_daily_return     NUMERIC(10, 2),
     sum_6m_ln_daily_return      NUMERIC(10, 2),
     n_6m                        NUMERIC(10, 2),
@@ -28,9 +27,9 @@ CREATE TABLE nse.momentum_stats (
 ALTER TABLE nse.momentum_stats
 ADD CONSTRAINT ms_unique_ticker_date UNIQUE (ticker, price_date);
 
-CREATE INDEX idx_momentum_stats_ticker_date 
+CREATE INDEX IF NOT EXISTS idx_momentum_stats_ticker_date
 ON nse.momentum_stats (ticker, price_date);
 
-CREATE INDEX idx_momentum_stats_date 
+CREATE INDEX IF NOT EXISTS idx_momentum_stats_date
 ON nse.momentum_stats (price_date);
 

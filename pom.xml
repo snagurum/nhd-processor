@@ -9,7 +9,7 @@
     <relativePath/>
   </parent>
   <groupId>com.nhd</groupId>
-  <artifactId>processor</artifactId>
+  <artifactId>nhd-processor</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name/>
   <description/>

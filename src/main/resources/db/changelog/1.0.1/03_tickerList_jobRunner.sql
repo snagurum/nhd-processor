@@ -1,6 +1,6 @@
 
 -- TICKER LIST & JOB RUNNER
-CREATE TABLE re.ticker_list (
+CREATE TABLE IF NOT EXISTS re.ticker_list (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     ticker_list TEXT,
@@ -17,7 +17,7 @@ insert into re.ticker_list(name,active_From, ticker_list)values('NiftyMidcap150'
 
 
 
-CREATE TABLE re.job_runner (
+CREATE TABLE IF NOT EXISTS re.job_runner (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     -- type VARCHAR(255) NOT NULL,
