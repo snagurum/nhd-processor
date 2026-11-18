@@ -14,11 +14,9 @@ import java.time.LocalDate;
 public class ProcessorProperties {
 
     private int paginationPageSize = 2000;
-    private int apiStockStatsPageSize = 1000;
     private int etlTickerChunkSize = 250;
     private LocalDate etlDefaultFromDate = LocalDate.of(1996, 1, 1);
     private LocalDate etlMomentumFromDate = LocalDate.of(2014, 1, 1);
-    private int persistenceJdbcBatchSize = 10000;
     private int persistenceFlushStockPrice = 10000;
     private int persistenceFlushStockStats = 500000;
     private int persistenceFlushMomentumStats = 10000;

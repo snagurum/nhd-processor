@@ -7,8 +7,6 @@ import com.nhd.processor.models.MomentumZStatsScore;
 import com.nhd.processor.models.StockPrice;
 import com.nhd.processor.models.StockStats;
 import com.nhd.processor.services.MomentumStatsService;
-import com.nhd.processor.services.MomentumZStatsService;
-import com.nhd.processor.services.MomentumZStatsScoreService;
 import com.nhd.processor.services.StockPriceService;
 import com.nhd.processor.services.StockStatsService;
 
@@ -30,8 +28,6 @@ public class DbPersistenceService {
     private final StockStatsService stockStatsService;
     private final StockPriceService stockPriceService;
     private final MomentumStatsService momentumStatsService;
-    private final MomentumZStatsService momentumZStatsService;
-    private final MomentumZStatsScoreService momentumZStatsScoreService;
     private final ProcessorProperties properties;
 
     public PersistenceBuffer newBuffer(){
@@ -69,19 +65,19 @@ public class DbPersistenceService {
         
         List<MomentumStats> momentumStatsList = (List<MomentumStats>) buffer.cachedDBdata.get("momentumStatsList");
         if(momentumStatsList != null && (flushAnyways || momentumStatsList.size() > properties.getPersistenceFlushMomentumStats())){
-            momentumStatsService.saveAll(momentumStatsList);
+            momentumStatsService.saveMomentumStats(momentumStatsList);
             momentumStatsList.clear();
         }
         
         List<MomentumZStats> momentumZStatsList = (List<MomentumZStats>) buffer.cachedDBdata.get("momentumZStatsList");
         if(momentumZStatsList != null && (flushAnyways || momentumZStatsList.size() > properties.getPersistenceFlushMomentumZStats())){
-            momentumZStatsService.saveAll(momentumZStatsList);
+            momentumStatsService.saveMomentumZStats(momentumZStatsList);
             momentumZStatsList.clear();
         }
         
         List<MomentumZStatsScore> momentumZStatsScoreList = (List<MomentumZStatsScore>) buffer.cachedDBdata.get("momentumZStatsScoreList");
         if(momentumZStatsScoreList != null && (flushAnyways || momentumZStatsScoreList.size() > properties.getPersistenceFlushMomentumZStatsScore())){
-            momentumZStatsScoreService.saveAll(momentumZStatsScoreList);
+            momentumStatsService.saveMomentumZStatsScores(momentumZStatsScoreList);
             if(momentumZStatsScoreList.size()>0) log.info("saving data momentumZStatsScoreList count = {}, priceDate = {}", momentumZStatsScoreList.size(), momentumZStatsScoreList.get(0).getPriceDate());
             momentumZStatsScoreList.clear();
         }

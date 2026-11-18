@@ -1,30 +1,42 @@
-package com.nhd.processor.services;
+package com.nhd.processor.re.services;
 
 import com.nhd.processor.dto.RuleDTO;
 import com.nhd.processor.dto.RuleItemDTO;
+
+import org.springframework.stereotype.Service;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.mvel2.MVEL;
 import org.mvel2.ParserConfiguration;
 import org.mvel2.ParserContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@Slf4j
 public class RuleEngineService {
 
-    private static final Logger log = LoggerFactory.getLogger(RuleEngineService.class);
-
     private final Map<String, Serializable> expressionCache = new ConcurrentHashMap<>();
-    private final ParserConfiguration parserConfig;
+    private final ParserConfiguration parserConfig = createParserConfiguration();
 
-    public RuleEngineService() {
-        this.parserConfig = new ParserConfiguration();
-        // Force MVEL to use the same ClassLoader that loaded your application models
-        this.parserConfig.setClassLoader(this.getClass().getClassLoader());
+    private static ParserConfiguration createParserConfiguration() {
+        ParserConfiguration configuration = new ParserConfiguration();
+        configuration.setClassLoader(RuleEngineService.class.getClassLoader());
+        try {
+            configuration.addImport("topBy",
+                    RuleFunctions.class.getMethod("topBy", List.class, String.class, int.class));
+            configuration.addImport("mapBy",
+                    RuleFunctions.class.getMethod("mapBy", List.class, String.class));
+            configuration.addImport("parseDate_ddMonyyyy",
+                    RuleFunctions.class.getMethod("parseDate_ddMonyyyy", String.class));
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("Unable to register rule functions", e);
+        }
+        return configuration;
     }
 
     public void executeRule(Map<String, Object> context, RuleDTO rule) {

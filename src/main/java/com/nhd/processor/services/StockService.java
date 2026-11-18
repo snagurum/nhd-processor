@@ -1,20 +1,25 @@
 package com.nhd.processor.services;
 
-import com.nhd.processor.repository.StockRepository;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class StockService {
-    
-    private final StockRepository stockRepository;
 
-    public List<String> getAllActiveTickers(){
-        return stockRepository.findTickersByActive();
+    private final StocksDataClient client;
+
+    public List<String> getAllActiveTickers() {
+        return client.post(
+            "/internal/active-tickers"
+            ,Map.of()
+            ,new ParameterizedTypeReference<List<String>>() {}
+        );
     }
 }

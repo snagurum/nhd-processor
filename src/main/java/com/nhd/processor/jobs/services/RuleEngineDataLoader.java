@@ -10,7 +10,6 @@ import com.nhd.processor.models.MomentumZStatsScore;
 import com.nhd.processor.models.StockPrice;
 import com.nhd.processor.models.StockStats;
 import com.nhd.processor.services.MomentumStatsService;
-import com.nhd.processor.services.MomentumZStatsService;
 import com.nhd.processor.services.StockPriceService;
 import com.nhd.processor.services.StockStatsService;
 
@@ -48,7 +47,6 @@ public class RuleEngineDataLoader {
     private final StockPriceService stockPriceService;
     private final StockStatsService stockStatsService;
     private final MomentumStatsService momentumStatsService;
-    private final MomentumZStatsService momentumZStatsService;
     private final ObjectMapper objectMapper;
     private final ProcessorProperties properties;
 
@@ -57,7 +55,6 @@ public class RuleEngineDataLoader {
         , StockPriceService stockPriceService
         , StockStatsService stockStatsService
         , MomentumStatsService momentumStatsService
-        , MomentumZStatsService momentumZStatsService
         , ObjectMapper objectMapper
         , ProcessorProperties properties){
         this.loaderUrl = loaderUrl;
@@ -66,7 +63,6 @@ public class RuleEngineDataLoader {
         this.objectMapper = objectMapper;
         this.stockStatsService = stockStatsService;
         this.momentumStatsService = momentumStatsService;
-        this.momentumZStatsService = momentumZStatsService;
         this.properties = properties;
     }
 
@@ -272,7 +268,7 @@ public class RuleEngineDataLoader {
 
 
     public MomentumZStats getMomentumZStatsForDate(LocalDate date, String tickerListName){
-        MomentumZStats momentumZStats = momentumZStatsService.getStockStatsForDate(date, tickerListName);
+        MomentumZStats momentumZStats = momentumStatsService.getMomentumZStatsForDate(date, tickerListName);
         return momentumZStats;
     }
 

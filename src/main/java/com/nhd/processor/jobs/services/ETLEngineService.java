@@ -1,18 +1,17 @@
 package com.nhd.processor.jobs.services;
 
-import com.nhd.processor.dto.RuleDTO;
 import com.nhd.processor.config.ProcessorProperties;
+import com.nhd.processor.dto.RuleDTO;
 import com.nhd.processor.models.JobRunner;
 import com.nhd.processor.models.TickerList;
-import com.nhd.processor.services.RuleEngineService;
+import com.nhd.processor.re.services.RuleEngineService;
 import com.nhd.processor.services.RuleService;
 import com.nhd.processor.services.StockService;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -24,9 +23,9 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class ETLEngineService {
 
-    private static final Logger log = LoggerFactory.getLogger(ETLEngineService.class);
     private final RuleService ruleService;
     private final RuleEngineService ruleEngineService;
     private final RuleEngineDataLoader ruleEngineDataLoaderService;
