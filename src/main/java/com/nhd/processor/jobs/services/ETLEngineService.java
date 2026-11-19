@@ -3,11 +3,14 @@ package com.nhd.processor.jobs.services;
 import com.nhd.processor.config.ProcessorProperties;
 import com.nhd.processor.dto.RuleDTO;
 import com.nhd.processor.models.JobRunner;
+import com.nhd.processor.models.StrategyRunner;
 import com.nhd.processor.models.TickerList;
 import com.nhd.processor.re.services.RuleEngineService;
 import com.nhd.processor.services.RuleService;
 import com.nhd.processor.services.StockService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import lombok.AllArgsConstructor;
@@ -17,14 +20,19 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
 @Slf4j
 public class ETLEngineService {
+    private static final Logger log = LoggerFactory.getLogger(ETLEngineService.class);
 
     private final RuleService ruleService;
     private final RuleEngineService ruleEngineService;
@@ -65,31 +73,69 @@ public class ETLEngineService {
         }
     }
 
-    private static List<String> normalizeTickers(List<String> tickers) {
-        if (tickers == null) {
-            return List.of();
+    public void executeStrategyRunner(StrategyRunner strategyRunner) {
+        String period = Objects.toString(strategyRunner.getRebalancePeriod(), "").trim().toUpperCase(Locale.ROOT);
+        int maxValue = switch (period) {
+            case "MONTHLY" -> 31;
+            case "WEEKLY" -> 7;
+            default -> throw new IllegalArgumentException("rebalancePeriod must be MONTHLY or WEEKLY");
+        };
+        Integer value = strategyRunner.getRebalanceValue();
+        if (value == null || value < 1 || value > maxValue) {
+            throw new IllegalArgumentException("rebalanceValue must be between 1 and " + maxValue + " for " + period);
         }
-        return tickers.stream()
+
+        String ruleName = strategyRunner.getRuleName().trim();
+        RuleDTO rule = ruleService.findRuleByName(ruleName)
+            .orElseThrow(() -> new NoSuchElementException("Rule " + ruleName + " not found"));
+        LocalDate startDate = getStartDate(rule, strategyRunner.getStartDate());
+        LocalDate endDate = strategyRunner.getEndDate();
+        if (endDate == null) {
+            endDate = LocalDate.now().minusDays(1);
+        }
+        if (startDate.isAfter(endDate)) {
+            return;
+        }
+
+        NavigableSet<LocalDate> tradingDates = new TreeSet<>(ruleEngineDataLoaderService.getDistinctTradingDates().keySet());
+        DbPersistenceService.PersistenceBuffer buffer = dbPersistenceService.newBuffer();
+        boolean monthly = "MONTHLY".equals(period);
+        startDate.datesUntil(endDate.plusDays(1))
+            .filter(date -> value == (monthly ? date.getDayOfMonth() : date.getDayOfWeek().getValue() % 7 + 1))
+            .map(tradingDates::ceiling)
             .filter(Objects::nonNull)
-            .map(String::trim)
-            .filter(ticker -> !ticker.isEmpty())
-            .collect(Collectors.toList());
+            .distinct()
+            .forEach(date -> executeRuleForFromDate(rule, date, strategyRunner, buffer));
+        dbPersistenceService.flushData(buffer, true);
     }
 
     public void executeRuleForFromDate(RuleDTO rule, LocalDate startDate , List<String> tickers, String tickerListName){
-        Map<String, Object> context = new HashMap<>();
+        Map<String, Object> jobContext = new HashMap<>();
         DbPersistenceService.PersistenceBuffer buffer = dbPersistenceService.newBuffer();
-        LocalDate endDate = LocalDate.now();
         Map<LocalDate, LocalDate> tradingDates = ruleEngineDataLoaderService.getDistinctTradingDates();
-        startDate.datesUntil(endDate).forEach(currentDate -> {
-            if(tradingDates.containsKey(currentDate)){
-                ruleEngineDataLoaderService.loadSourceTableDataForFromDate(context, rule, currentDate, tickers, tickerListName);
-                ruleEngineDataLoaderService.loadDestTable(context, rule, tickerListName);
-                ruleEngineService.executeRule(context, rule);
-                dbPersistenceService.peristData(buffer, false, context, rule.getDestinationTable());
-            }
-        });
-        dbPersistenceService.peristData(buffer, true, context, rule.getDestinationTable());
+        startDate.datesUntil(LocalDate.now())
+            .filter(tradingDates::containsKey)
+            .forEach(date -> {
+                log.trace("running executeRuleForDate for {}",date);
+                executeRuleForDate(rule, date, tickers, tickerListName, jobContext, buffer);
+            });
+        dbPersistenceService.peristData(buffer, true, jobContext, rule.getDestinationTable());
+    }
+
+    private void executeRuleForFromDate(RuleDTO rule, LocalDate date, StrategyRunner strategyRunner,
+            DbPersistenceService.PersistenceBuffer buffer) {
+        Map<String, Object> context = new HashMap<>();
+        context.put("strategyRunner", strategyRunner);
+        context.put("priceDate", date);
+        executeRuleForDate(rule, date, null, strategyRunner.getTickerListName(), context, buffer);
+    }
+
+    private void executeRuleForDate(RuleDTO rule, LocalDate date, List<String> tickers, String tickerListName,
+            Map<String, Object> context, DbPersistenceService.PersistenceBuffer buffer) {
+        ruleEngineDataLoaderService.loadSourceTableDataForFromDate(context, rule, date, tickers, tickerListName);
+        ruleEngineDataLoaderService.loadDestTable(context, rule, tickerListName);
+        ruleEngineService.executeRule(context, rule);
+        dbPersistenceService.peristData(buffer, false, context, rule.getDestinationTable());
     }
 
     public void executeRuleForTickers(RuleDTO rule, List<String> tickers, LocalDate startDate, String tickerListName){
@@ -136,5 +182,16 @@ public class ETLEngineService {
         if(rule.getType().equals("MOMENTUM"))
             startDate = (null == fromDate) ? properties.getEtlMomentumFromDate() : fromDate;
         return startDate;
+    }
+
+    private static List<String> normalizeTickers(List<String> tickers) {
+        if (tickers == null) {
+            return List.of();
+        }
+        return tickers.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(ticker -> !ticker.isEmpty())
+            .collect(Collectors.toList());
     }
 }

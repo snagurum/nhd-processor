@@ -83,7 +83,8 @@ class StocksDataHttpTest {
     @Test
     void failedBatchDoesNotClearRuleOutputAndRetryResendsIt() {
         var persistence = new DbPersistenceService(new StockStatsService(client,new ProcessorProperties()),prices,
-                new MomentumStatsService(client),new ProcessorProperties());
+                new MomentumStatsService(client),new PortfolioService(new RestTemplate(), "http://localhost:8083/pf"),
+                new ProcessorProperties());
         var buffer = persistence.newBuffer();
         var rows = List.of(price("A"),price("B"),price("C"));
         Map<String,Object> context = new HashMap<>();

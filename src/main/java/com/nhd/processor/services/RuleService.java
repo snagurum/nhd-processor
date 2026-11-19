@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -114,6 +115,11 @@ public class RuleService {
     public RuleDTO getRuleByName(String name){
         Rule rule =  ruleRepository.findByName(name);
             return convertToDTO(rule);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<RuleDTO> findRuleByName(String name) {
+        return Optional.ofNullable(ruleRepository.findByName(name)).map(this::convertToDTO);
     }
 
     @Transactional(readOnly = true)

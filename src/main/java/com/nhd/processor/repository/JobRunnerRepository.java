@@ -2,6 +2,7 @@ package com.nhd.processor.repository;
 
 import com.nhd.processor.models.JobRunner;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +12,7 @@ import java.util.List;
 @Repository
 public interface JobRunnerRepository extends JpaRepository<JobRunner, Long> {
     
+    @EntityGraph(attributePaths = "tickerList")
     Optional<JobRunner> findByName(String name);
     
     Optional<JobRunner> findById(Long id);

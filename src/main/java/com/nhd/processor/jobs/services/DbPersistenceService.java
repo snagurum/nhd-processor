@@ -6,28 +6,33 @@ import com.nhd.processor.models.MomentumZStats;
 import com.nhd.processor.models.MomentumZStatsScore;
 import com.nhd.processor.models.StockPrice;
 import com.nhd.processor.models.StockStats;
+import com.nhd.processor.models.StrategyPortfolio;
+import com.nhd.processor.models.StrategyTrade;
 import com.nhd.processor.services.MomentumStatsService;
+import com.nhd.processor.services.PortfolioService;
 import com.nhd.processor.services.StockPriceService;
 import com.nhd.processor.services.StockStatsService;
 
 import org.springframework.stereotype.Service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
+@Slf4j
 public class DbPersistenceService {
-    private static final Logger log = LoggerFactory.getLogger(DbPersistenceService.class);
     private final StockStatsService stockStatsService;
     private final StockPriceService stockPriceService;
     private final MomentumStatsService momentumStatsService;
+    private final PortfolioService portfolioService;
     private final ProcessorProperties properties;
 
     public PersistenceBuffer newBuffer(){
@@ -46,7 +51,6 @@ public class DbPersistenceService {
         cacheData(buffer, context, destinationTable);
         flushData(buffer, flushAnyways);
     }
-
 
     @SuppressWarnings ("unchecked")
     public void flushData(PersistenceBuffer buffer, boolean flushAnyways){
@@ -82,66 +86,116 @@ public class DbPersistenceService {
             momentumZStatsScoreList.clear();
         }
 
-    }
-
-
-    @SuppressWarnings ("unchecked")
-    public void cacheData(PersistenceBuffer buffer, Map<String, Object> context, String destinationTable){
-        if ("STOCK_PRICE".equals(destinationTable)) {
-            List<StockPrice> incomingData = (List<StockPrice>) context.get("stockPriceList");
-            if (incomingData == null || incomingData.isEmpty()) return; 
-            List<StockPrice> stockPriceList = (List<StockPrice>) buffer.cachedDBdata.computeIfAbsent(
-                "stockPriceList",
-                k -> new ArrayList<>()
-            );
-            logCacheStats("STOCK_PRICE", stockPriceList, incomingData);
-            if(incomingData != null)    stockPriceList.addAll(incomingData);
-        }
-        
-        if ("STOCK_STATS".equals(destinationTable)) {
-            List<StockStats> incomingData = (List<StockStats>) context.get("stockStatsList");
-            if (incomingData == null || incomingData.isEmpty()) return; 
-            List<StockStats> stockStatsList = (List<StockStats>) buffer.cachedDBdata.computeIfAbsent(
-                "stockStatsList",
-                k -> new ArrayList<>()
-            );
-            logCacheStats("STOCK_STATS", stockStatsList, incomingData);
-            if(incomingData != null)    stockStatsList.addAll(incomingData);
-        }
-        
-        if ("MOMENTUM_STATS".equals(destinationTable)) {
-            List<MomentumStats> incomingData = (List<MomentumStats>) context.get("momentumStatsList");
-            if (incomingData == null || incomingData.isEmpty()) return; 
-            List<MomentumStats> momentumStatsList = (List<MomentumStats>) buffer.cachedDBdata.computeIfAbsent(
-                "momentumStatsList",
-                k -> new ArrayList<>()
-            );
-            logCacheStats("MOMENTUM_STATS", momentumStatsList, incomingData);
-            if(incomingData != null)    momentumStatsList.addAll(incomingData);
-        }
-        
-        if ("MOMENTUM_Z_STATS".equals(destinationTable)) {
-            MomentumZStats incomingData = (MomentumZStats) context.get("momentumZStats");
-            List<MomentumZStats> momentumZStatsList = (List<MomentumZStats>) buffer.cachedDBdata.computeIfAbsent(
-                "momentumZStatsList",
-                k -> new ArrayList<>()
-            );
-            if(incomingData != null ){
-                momentumZStatsList.add(incomingData);
+        Deque<StrategyPortfolio> strategyPortfolios = (Deque<StrategyPortfolio>) buffer.cachedDBdata.get("strategyPortfolioList");
+        if (strategyPortfolios != null && (flushAnyways || strategyPortfolios.size() > properties.getPersistenceFlushStrategyPortfolio())) {
+            while (!strategyPortfolios.isEmpty()) {
+                portfolioService.savePortfolio(strategyPortfolios.getFirst());
+                strategyPortfolios.removeFirst();
             }
         }
-        
-        if ("MOMENTUM_Z_STATS_SCORE".equals(destinationTable)) {
-            List<MomentumZStatsScore> incomingData = (List<MomentumZStatsScore>) context.get("momentumZStatsScoreList");
-            List<MomentumZStatsScore> momentumZStatsScoreList = (List<MomentumZStatsScore>) buffer.cachedDBdata.computeIfAbsent(
-                "momentumZStatsScoreList",
-                k -> new ArrayList<>()
-            );
-            logCacheStats("MOMENTUM_Z_STATS_SCORE", momentumZStatsScoreList, incomingData);
-            if(incomingData != null)    momentumZStatsScoreList.addAll(incomingData);
+
+        Deque<StrategyTrade> strategyTrades = (Deque<StrategyTrade>) buffer.cachedDBdata.get("strategyTradeList");
+        if (strategyTrades != null && (flushAnyways || strategyTrades.size() > properties.getPersistenceFlushStrategyTrade())) {
+            while (!strategyTrades.isEmpty()) {
+                portfolioService.saveTrade(strategyTrades.getFirst());
+                strategyTrades.removeFirst();
+            }
         }
 
-        context.clear();
+    }
+
+    @SuppressWarnings ("unchecked")
+    public void cacheData(PersistenceBuffer buffer, Map<String, Object> context, String destinationTables) {
+        List<String> destinations = destinationTables == null
+            ? List.of()
+            : List.of(destinationTables.split(",")).stream()
+                .map(String::trim)
+                .filter(destination -> !destination.isEmpty())
+                .distinct()
+                .toList();
+
+        boolean clearContext = destinations.isEmpty();
+        for (String destinationTable : destinations) {
+            if ("STOCK_PRICE".equals(destinationTable)) {
+                List<StockPrice> incomingData = (List<StockPrice>) context.get("stockPriceList");
+                if (incomingData == null || incomingData.isEmpty()) continue;
+                List<StockPrice> stockPriceList = (List<StockPrice>) buffer.cachedDBdata.computeIfAbsent(
+                    "stockPriceList",
+                    k -> new ArrayList<>()
+                );
+                logCacheStats("STOCK_PRICE", stockPriceList, incomingData);
+                if(incomingData != null)    stockPriceList.addAll(incomingData);
+            }
+
+            if ("STOCK_STATS".equals(destinationTable)) {
+                List<StockStats> incomingData = (List<StockStats>) context.get("stockStatsList");
+                if (incomingData == null || incomingData.isEmpty()) continue;
+                List<StockStats> stockStatsList = (List<StockStats>) buffer.cachedDBdata.computeIfAbsent(
+                    "stockStatsList",
+                    k -> new ArrayList<>()
+                );
+                logCacheStats("STOCK_STATS", stockStatsList, incomingData);
+                if(incomingData != null)    stockStatsList.addAll(incomingData);
+            }
+
+            if ("MOMENTUM_STATS".equals(destinationTable)) {
+                List<MomentumStats> incomingData = (List<MomentumStats>) context.get("momentumStatsList");
+                if (incomingData == null || incomingData.isEmpty()) continue;
+                List<MomentumStats> momentumStatsList = (List<MomentumStats>) buffer.cachedDBdata.computeIfAbsent(
+                    "momentumStatsList",
+                    k -> new ArrayList<>()
+                );
+                logCacheStats("MOMENTUM_STATS", momentumStatsList, incomingData);
+                if(incomingData != null)    momentumStatsList.addAll(incomingData);
+            }
+
+            if ("MOMENTUM_Z_STATS".equals(destinationTable)) {
+                MomentumZStats incomingData = (MomentumZStats) context.get("momentumZStats");
+                List<MomentumZStats> momentumZStatsList = (List<MomentumZStats>) buffer.cachedDBdata.computeIfAbsent(
+                    "momentumZStatsList",
+                    k -> new ArrayList<>()
+                );
+                if(incomingData != null ){
+                    momentumZStatsList.add(incomingData);
+                }
+            }
+
+            if ("MOMENTUM_Z_STATS_SCORE".equals(destinationTable)) {
+                List<MomentumZStatsScore> incomingData = (List<MomentumZStatsScore>) context.get("momentumZStatsScoreList");
+                List<MomentumZStatsScore> momentumZStatsScoreList = (List<MomentumZStatsScore>) buffer.cachedDBdata.computeIfAbsent(
+                    "momentumZStatsScoreList",
+                    k -> new ArrayList<>()
+                );
+                logCacheStats("MOMENTUM_Z_STATS_SCORE", momentumZStatsScoreList, incomingData);
+                if(incomingData != null)    momentumZStatsScoreList.addAll(incomingData);
+            }
+
+            if ("STRATEGY_PORTFOLIO".equals(destinationTable)) {
+                List<StrategyPortfolio> incomingData = (List<StrategyPortfolio>) context.get("strategyPortfolioList");
+                if (incomingData == null || incomingData.isEmpty()) continue;
+                Deque<StrategyPortfolio> strategyPortfolios = (Deque<StrategyPortfolio>) buffer.cachedDBdata.computeIfAbsent(
+                    "strategyPortfolioList",
+                    key -> new ArrayDeque<StrategyPortfolio>()
+                );
+                strategyPortfolios.addAll(incomingData);
+            }
+
+            if ("STRATEGY_TRADE".equals(destinationTable)) {
+                List<StrategyTrade> incomingData = (List<StrategyTrade>) context.get("strategyTradeList");
+                if (incomingData == null || incomingData.isEmpty()) continue;
+                Deque<StrategyTrade> strategyTrades = (Deque<StrategyTrade>) buffer.cachedDBdata.computeIfAbsent(
+                    "strategyTradeList",
+                    key -> new ArrayDeque<StrategyTrade>()
+                );
+                strategyTrades.addAll(incomingData);
+            }
+
+            clearContext = true;
+        }
+
+        if (clearContext) {
+            context.clear();
+        }
     }
 
     private void logCacheStats(String destTableName, List<?> masterList, List<?> incomingList){

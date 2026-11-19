@@ -22,6 +22,8 @@ public class ProcessorProperties {
     private int persistenceFlushMomentumStats = 10000;
     private int persistenceFlushMomentumZStats = 10000;
     private int persistenceFlushMomentumZStatsScore = 10000;
+    private int persistenceFlushStrategyPortfolio = 1000;
+    private int persistenceFlushStrategyTrade = 1000;
     private Duration loaderClientConnectTimeout = Duration.ofSeconds(10);
     private Duration loaderClientReadTimeout = Duration.ofSeconds(60);
 

@@ -180,7 +180,9 @@ public class RuleEngineDataLoader {
 
 
     public void loadDestTable(Map<String,Object> context, RuleDTO rule, String tickerListName){
-        List<String> sourceTables = List.of(rule.getSourceTables().split(","));
+        List<String> sourceTables = rule.getSourceTables() == null
+            ? List.of()
+            : List.of(rule.getSourceTables().split(","));
         String destinationTable = rule.getDestinationTable();
         if("STOCK_PRICE".equals(destinationTable) && sourceTables.contains("LOAD_BSP_TICKER")){
             List<?> bspList = (List<?>) context.get("bspList");
@@ -220,6 +222,17 @@ public class RuleEngineDataLoader {
                         .collect(Collectors.toCollection(() -> new ArrayList<>(momentumStatsList.size())));
                 context.put("momentumZStatsScoreList", target);
             }else context.put("momentumZStatsScoreList", new ArrayList<>());
+        }
+
+        if (destinationTable != null) {
+            for (String destination : destinationTable.split(",")) {
+                switch (destination.trim()) {
+                    case "STRATEGY_TRADE" -> context.put("strategyTradeList", new ArrayList<>());
+                    case "STRATEGY_PORTFOLIO" -> context.put("strategyPortfolioList", new ArrayList<>());
+                    default -> {
+                    }
+                }
+            }
         }
     }
 
